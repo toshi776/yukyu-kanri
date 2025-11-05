@@ -4,7 +4,7 @@
 echo "🚀 有給管理システムのデプロイを開始します..."
 
 # WebアプリのデプロイメントID
-DEPLOYMENT_ID="AKfycbxCrhFyMBOjKM07JBnTYQg6rGJlPTfgOV8FQ2tQe6F7Tbtn2I2Bcpz4ZVLlsjJpX-PS"
+DEPLOYMENT_ID="AKfycbyJNqVvi4wYJwjXEc5Y9QF7qV-08M9uk4396sAo7Lu0i0lsY2RlCtbAPVMWaeYiKeKn"
 
 # 現在のブランチを確認
 BRANCH=$(git branch --show-current 2>/dev/null || echo "not a git repo")
