@@ -1,0 +1,1028 @@
+
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <base target="_top">
+  <style>
+    /* 基本スタイル */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f5f5f5;
+    }
+    
+    h1 {
+      color: #333;
+      border-bottom: 2px solid #4CAF50;
+      padding-bottom: 10px;
+    }
+    
+    /* テーブルのスタイル */
+    #employeeTable {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 20px;
+      background-color: white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    #employeeTable th {
+      background-color: #4CAF50;
+      color: white;
+      padding: 12px 8px;
+      text-align: left;
+      font-weight: bold;
+      border: 1px solid #4CAF50;
+      position: sticky;
+      top: 0;
+    }
+    
+    #employeeTable td {
+      padding: 10px 8px;
+      border: 1px solid #ddd;
+    }
+    
+    #employeeTable tbody tr:hover {
+      background-color: #f5f5f5;
+    }
+    
+    #employeeTable tbody tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    
+    /* 残日数の強調表示 */
+    .remaining-days {
+      font-weight: bold;
+      font-size: 16px;
+    }
+    
+    .remaining-low {
+      color: #ff9800;
+    }
+    
+    .remaining-critical {
+      color: #f44336;
+    }
+    
+    /* ボタンのスタイル */
+    #employeeTable button {
+      padding: 6px 12px;
+      margin: 0 2px;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 14px;
+      background-color: #2196F3;
+      color: white;
+    }
+    
+    #employeeTable button:hover {
+      background-color: #1976D2;
+    }
+    
+    #employeeTable button.remarks-btn {
+      background-color: #FF9800;
+    }
+    
+    #employeeTable button.remarks-btn:hover {
+      background-color: #F57C00;
+    }
+    
+    /* コントロール部分のスタイル */
+    .controls {
+      margin: 20px 0;
+      padding: 15px;
+      background-color: white;
+      border-radius: 5px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    
+    .controls input {
+      padding: 10px;
+      width: 300px;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+      font-size: 14px;
+    }
+    
+    .controls input:focus {
+      outline: none;
+      border-color: #4CAF50;
+    }
+    
+    .controls select {
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+      font-size: 14px;
+    }
+    
+    /* 統計情報 */
+    .stats {
+      margin: 20px 0;
+      padding: 15px;
+      background-color: white;
+      border-radius: 5px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      display: flex;
+      gap: 30px;
+    }
+    
+    .stat-item {
+      flex: 1;
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #4CAF50;
+    }
+    
+    .stat-label {
+      color: #666;
+      font-size: 14px;
+    }
+    
+    /* 行番号列を非表示 */
+    #employeeTable th:first-child,
+    #employeeTable td:first-child {
+      display: none;
+    }
+    
+    /* 備考欄のスタイル */
+    .remarks-cell {
+      max-width: 200px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .remarks-cell:hover {
+      white-space: normal;
+      overflow: visible;
+    }
+    
+    /* タブスタイル */
+    .tabs {
+      margin: 20px 0;
+      border-bottom: 2px solid #4CAF50;
+    }
+    
+    .tab-button {
+      background-color: #f0f0f0;
+      border: 1px solid #ddd;
+      border-bottom: none;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-right: 5px;
+    }
+    
+    .tab-button.active {
+      background-color: #4CAF50;
+      color: white;
+      border-color: #4CAF50;
+    }
+    
+    .tab-content {
+      display: none;
+      margin-top: 20px;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    /* 申請テーブルスタイル */
+    #applicationTable {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 20px;
+      background-color: white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    #applicationTable th {
+      background-color: #4CAF50;
+      color: white;
+      padding: 12px 8px;
+      text-align: left;
+      font-weight: bold;
+      border: 1px solid #4CAF50;
+    }
+    
+    #applicationTable td {
+      padding: 10px 8px;
+      border: 1px solid #ddd;
+    }
+    
+    #applicationTable tbody tr:hover {
+      background-color: #f5f5f5;
+    }
+    
+    .approve-btn {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      margin-right: 5px;
+    }
+    
+    .approve-btn:hover {
+      background-color: #45a049;
+    }
+    
+    .reject-btn {
+      background-color: #f44336;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    
+    .reject-btn:hover {
+      background-color: #da190b;
+    }
+    
+    .status-pending {
+      color: #ff9800;
+      font-weight: bold;
+    }
+    
+    .status-approved {
+      color: #4CAF50;
+      font-weight: bold;
+    }
+  </style>
+  <title>利用者一覧</title>
+</head>
+<body>
+  <h1>管理画面</h1>
+  
+  <!-- タブ切り替え -->
+  <div class="tabs">
+    <button class="tab-button active" onclick="showTab('employees')">利用者一覧</button>
+    <button class="tab-button" onclick="showTab('applications')">申請承認</button>
+    <button class="tab-button" onclick="showTab('url-management')">URL管理</button>
+  </div>
+  
+  <!-- 利用者一覧タブ -->
+  <div id="employeesTab" class="tab-content active">
+    <h2>利用者一覧</h2>
+    <div class="stats" id="statsContainer">
+    <div class="stat-item">
+      <div class="stat-value" id="totalCount">-</div>
+      <div class="stat-label">登録者数</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value" id="avgRemaining">-</div>
+      <div class="stat-label">平均残日数</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value" id="zeroCount">-</div>
+      <div class="stat-label">残日数ゼロ</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value" id="lowCount">-</div>
+      <div class="stat-label">残日数5日以下</div>
+    </div>
+  </div>
+  
+  <div class="controls">
+    <input type="text" id="searchInput" placeholder="利用者番号、氏名、備考で検索...">
+    <select id="remainingFilter">
+      <option value="">残日数フィルター</option>
+      <option value="all">すべて表示</option>
+      <option value="low">5日以下のみ</option>
+      <option value="zero">ゼロのみ</option>
+    </select>
+    <select id="sortBy">
+      <option value="">並び替え</option>
+      <option value="remaining">残日数順</option>
+      <option value="userName">氏名順</option>
+    </select>
+  </div>
+  
+  <table id="employeeTable">
+    <thead>
+      <tr>
+        <th>行番号</th>
+        <th>利用者番号</th>
+        <th>氏名</th>
+        <th>有給残日数</th>
+        <th>備考</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  </div>
+  
+  <!-- 申請承認タブ -->
+  <div id="applicationsTab" class="tab-content">
+    <h2>申請承認</h2>
+    
+    <div class="controls">
+      <input type="text" id="applicationSearch" placeholder="利用者名で検索...">
+    </div>
+    
+    <table id="applicationTable">
+      <thead>
+        <tr>
+          <th>利用者番号</th>
+          <th>利用者名</th>
+          <th>申請日</th>
+          <th>日数</th>
+          <th>申請日時</th>
+          <th>状態</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  
+  <script>
+    // グローバル変数
+    var allEmployees = [];
+    var allApplications = [];
+    
+    // タブ切り替え機能
+    function showTab(tabName) {
+      // すべてのタブボタンとコンテンツを非アクティブにする
+      var tabButtons = document.querySelectorAll('.tab-button');
+      var tabContents = document.querySelectorAll('.tab-content');
+      
+      tabButtons.forEach(function(button) {
+        button.classList.remove('active');
+      });
+      
+      tabContents.forEach(function(content) {
+        content.classList.remove('active');
+      });
+      
+      // 選択されたタブをアクティブにする
+      if (tabName === 'employees') {
+        document.querySelector('button[onclick="showTab(\'employees\')"]').classList.add('active');
+        document.getElementById('employeesTab').classList.add('active');
+      } else if (tabName === 'applications') {
+        document.querySelector('button[onclick="showTab(\'applications\')"]').classList.add('active');
+        document.getElementById('applicationsTab').classList.add('active');
+        loadApplications(); // 申請データを読み込む
+      }
+    }
+    
+    // 初期化関数
+    function onLoad() {
+      console.log('🔧 管理画面 - 初期化開始');
+      
+      var searchInput = document.getElementById('searchInput');
+      var remainingFilter = document.getElementById('remainingFilter');
+      var sortBy = document.getElementById('sortBy');
+      var applicationSearch = document.getElementById('applicationSearch');
+      
+      if (searchInput) {
+        searchInput.addEventListener('input', function() {
+          console.log('🔍 検索入力変更:', searchInput.value);
+          loadEmployees();
+        });
+      }
+      
+      if (remainingFilter) {
+        remainingFilter.addEventListener('change', function() {
+          console.log('🎯 残日数フィルター変更:', remainingFilter.value);
+          loadEmployees();
+        });
+      }
+      
+      if (sortBy) {
+        sortBy.addEventListener('change', function() {
+          console.log('🔄 並び替え変更:', sortBy.value);
+          loadEmployees();
+        });
+      }
+      
+      if (applicationSearch) {
+        applicationSearch.addEventListener('input', function() {
+          console.log('🔍 申請検索入力変更:', applicationSearch.value);
+          displayApplications();
+        });
+      }
+      
+      console.log('📊 初回データロード開始...');
+      loadEmployees();
+    }
+    
+    // ページ読み込み完了時に実行
+    window.onload = onLoad;
+    
+    // データ読み込み関数
+    function loadEmployees() {
+      console.log('📊 利用者データ取得開始...');
+      
+      var searchInput = document.getElementById('searchInput');
+      var remainingFilter = document.getElementById('remainingFilter');
+      var sortBy = document.getElementById('sortBy');
+      
+      var filter = searchInput ? String(searchInput.value || '') : '';
+      var remainingFilterValue = remainingFilter ? remainingFilter.value : '';
+      var sortByValue = sortBy ? sortBy.value : '';
+      
+      console.log('🔍 フィルター条件:', { 
+        filter: filter, 
+        remainingFilter: remainingFilterValue,
+        sortBy: sortByValue
+      });
+      
+      google.script.run
+        .withSuccessHandler(function(data) {
+          console.log('✅ データ取得成功:', data);
+          console.log('📊 取得件数:', data && data.records ? data.records.length : 0);
+          
+          if (data && data.records) {
+            allEmployees = data.records;
+            renderTable(allEmployees);
+            updateStats(data);
+            console.log('🎯 表示完了');
+          } else {
+            console.warn('⚠️ データまたはrecordsプロパティが存在しません');
+            allEmployees = [];
+            renderTable([]);
+            updateStats({ stats: { total: 0, zeroCount: 0, lowCount: 0 } });
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('❌ データ取得エラー:', error);
+          alert('データの取得に失敗しました: ' + error.message);
+          allEmployees = [];
+          renderTable([]);
+          updateStats({ stats: { total: 0, zeroCount: 0, lowCount: 0 } });
+        })
+        .getEmployees({ 
+          filter: filter,
+          remainingFilter: remainingFilterValue,
+          sortBy: sortByValue
+        });
+    }
+    
+    // テーブル描画関数
+    function renderTable(employees) {
+      console.log('🎨 テーブル描画開始 - 件数:', employees.length);
+      
+      var tbody = document.querySelector('#employeeTable tbody');
+      if (!tbody) {
+        console.error('❌ テーブルのtbody要素が見つかりません');
+        return;
+      }
+      
+      tbody.innerHTML = '';
+      
+      if (!employees || employees.length === 0) {
+        var tr = document.createElement('tr');
+        var td = document.createElement('td');
+        td.colSpan = 5;  // 備考列を含めて5列
+        td.style.textAlign = 'center';
+        td.style.color = '#666';
+        td.textContent = 'データがありません';
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        console.log('📋 空のテーブル表示');
+        return;
+      }
+      
+      employees.forEach(function(emp) {
+        console.log('📝 行データ:', emp);
+        
+        var tr = document.createElement('tr');
+        
+        // 行番号（非表示）
+        var tdRowNum = document.createElement('td');
+        tdRowNum.textContent = emp.rowNumber;
+        tr.appendChild(tdRowNum);
+        
+        // 利用者番号
+        var tdUserId = document.createElement('td');
+        tdUserId.textContent = emp.userId;
+        tr.appendChild(tdUserId);
+        
+        // 氏名
+        var tdUserName = document.createElement('td');
+        tdUserName.textContent = emp.userName;
+        tr.appendChild(tdUserName);
+        
+        // 有給残日数
+        var tdRemaining = document.createElement('td');
+        var remainingSpan = document.createElement('span');
+        remainingSpan.className = 'remaining-days';
+        remainingSpan.textContent = emp.remaining + ' 日';
+        
+        // 残日数による色分け
+        if (emp.remaining <= 3) {
+          remainingSpan.className += ' remaining-critical';
+        } else if (emp.remaining <= 5) {
+          remainingSpan.className += ' remaining-low';
+        }
+        
+        tdRemaining.appendChild(remainingSpan);
+        tr.appendChild(tdRemaining);
+        
+        // 備考
+        var tdRemarks = document.createElement('td');
+        tdRemarks.className = 'remarks-cell';
+        tdRemarks.textContent = emp.remarks || '';
+        tdRemarks.title = emp.remarks || ''; // ツールチップで全文表示
+        tr.appendChild(tdRemarks);
+        
+        // 操作ボタン
+        var tdActions = document.createElement('td');
+        
+        // 残日数編集ボタン
+        var editBtn = document.createElement('button');
+        editBtn.textContent = '残日数';
+        editBtn.onclick = function() {
+          editRemaining(emp.rowNumber, emp.userId, emp.userName, emp.remaining);
+        };
+        tdActions.appendChild(editBtn);
+        
+        // 備考編集ボタン
+        var remarksBtn = document.createElement('button');
+        remarksBtn.textContent = '備考';
+        remarksBtn.className = 'remarks-btn';
+        remarksBtn.onclick = function() {
+          editRemarks(emp.rowNumber, emp.userId, emp.userName, emp.remarks);
+        };
+        tdActions.appendChild(remarksBtn);
+        
+        tr.appendChild(tdActions);
+        
+        tbody.appendChild(tr);
+      });
+      
+      console.log('🎯 テーブル描画完了');
+    }
+    
+    // 統計情報更新
+    function updateStats(data) {
+      if (data.stats) {
+        document.getElementById('totalCount').textContent = data.stats.total || 0;
+        document.getElementById('zeroCount').textContent = data.stats.zeroCount || 0;
+        document.getElementById('lowCount').textContent = data.stats.lowCount || 0;
+      }
+      
+      // 平均残日数の計算
+      var employees = data.records || [];
+      var totalRemaining = employees.reduce(function(sum, emp) {
+        return sum + (parseFloat(emp.remaining) || 0);
+      }, 0);
+      var avgRemaining = employees.length > 0 ? (totalRemaining / employees.length).toFixed(1) : 0;
+      document.getElementById('avgRemaining').textContent = avgRemaining + ' 日';
+    }
+    
+    // 残日数編集
+    function editRemaining(rowNumber, userId, userName, currentRemaining) {
+      console.log('✏️ 残日数編集開始 - 行番号:', rowNumber, '利用者:', userName);
+      
+      var newValue = prompt(
+        '【' + userName + ' さん】\n' +
+        '現在の有給残日数: ' + currentRemaining + ' 日\n\n' +
+        '新しい残日数を入力してください:',
+        currentRemaining
+      );
+      
+      if (newValue === null) {
+        console.log('❌ 編集キャンセル');
+        return;
+      }
+      
+      var newRemaining = parseFloat(newValue);
+      
+      if (isNaN(newRemaining)) {
+        alert('数値を入力してください');
+        return;
+      }
+      
+      if (newRemaining < 0) {
+        alert('0以上の数値を入力してください');
+        return;
+      }
+      
+      console.log('📝 新しい残日数:', newRemaining);
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          console.log('✅ 更新成功:', result);
+          alert(userName + ' さんの残日数を ' + newRemaining + ' 日に更新しました');
+          loadEmployees();
+        })
+        .withFailureHandler(function(error) {
+          console.error('❌ 更新エラー:', error);
+          alert('更新に失敗しました: ' + error.message);
+        })
+        .updateEmployeeRemaining({
+          rowNumber: rowNumber,
+          newRemaining: newRemaining
+        });
+    }
+    
+    // 備考編集
+    function editRemarks(rowNumber, userId, userName, currentRemarks) {
+      console.log('✏️ 備考編集開始 - 行番号:', rowNumber, '利用者:', userName);
+      
+      var newValue = prompt(
+        '【' + userName + ' さん】\n' +
+        '現在の備考: ' + (currentRemarks || '（なし）') + '\n\n' +
+        '新しい備考を入力してください:',
+        currentRemarks || ''
+      );
+      
+      if (newValue === null) {
+        console.log('❌ 編集キャンセル');
+        return;
+      }
+      
+      console.log('📝 新しい備考:', newValue);
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          console.log('✅ 備考更新成功:', result);
+          alert(userName + ' さんの備考を更新しました');
+          loadEmployees();
+        })
+        .withFailureHandler(function(error) {
+          console.error('❌ 備考更新エラー:', error);
+          alert('備考の更新に失敗しました: ' + error.message);
+        })
+        .updateEmployeeRemarks({
+          rowNumber: rowNumber,
+          newRemarks: newValue
+        });
+    }
+    
+    // 申請データ読み込み
+    function loadApplications() {
+      console.log('📊 申請データ取得開始...');
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          console.log('✅ 申請データ取得成功:', result);
+          // getApplicationsは{records: [], pagination: {}}形式で返すので、recordsを取得
+          allApplications = (result && result.records) ? result.records : [];
+          displayApplications();
+        })
+        .withFailureHandler(function(error) {
+          console.error('❌ 申請データ取得エラー:', error);
+          alert('申請データの取得に失敗しました: ' + error.message);
+        })
+        .getApplications({});
+    }
+    
+    // 申請データ表示
+    function displayApplications() {
+      var tbody = document.querySelector('#applicationTable tbody');
+      if (!tbody) return;
+      
+      var searchText = document.getElementById('applicationSearch').value.toLowerCase();
+      
+      // フィルタリング（承認待ちのみ表示）
+      var filteredApplications = allApplications.filter(function(app) {
+        var matchesSearch = !searchText || app.userName.toLowerCase().includes(searchText);
+        // 承認待ち（Pending）のみ表示
+        return matchesSearch && app.status === 'Pending';
+      });
+      
+      if (filteredApplications.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #666; padding: 20px;">該当する申請はありません</td></tr>';
+        return;
+      }
+      
+      var html = '';
+      filteredApplications.forEach(function(app) {
+        var daysText = (app.applyDays === 0.5) ? '0.5日' : '1日';
+        html += '<tr>';
+        html += '<td>' + app.userId + '</td>';
+        html += '<td>' + app.userName + '</td>';
+        html += '<td>' + app.applyDate + '</td>';
+        html += '<td>' + daysText + '</td>';
+        html += '<td>' + app.timestamp + '</td>';
+        html += '<td class="status-' + app.status.toLowerCase() + '">';
+        html += app.status === 'Pending' ? '承認待ち' : app.status === 'Approved' ? '承認済み' : app.status;
+        html += '</td>';
+        html += '<td>';
+        
+        if (app.status === 'Pending') {
+          html += '<button class="approve-btn" onclick="approveApplication(' + app.recordId + ', \'' + app.userName + '\')">承認</button>';
+          html += '<button class="reject-btn" onclick="rejectApplication(' + app.recordId + ', \'' + app.userName + '\')">却下</button>';
+        } else {
+          html += '<span style="color: #999;">-</span>';
+        }
+        
+        html += '</td>';
+        html += '</tr>';
+      });
+      
+      tbody.innerHTML = html;
+    }
+    
+    // 申請承認
+    function approveApplication(rowNumber, userName) {
+      if (!confirm(userName + ' さんの申請を承認しますか？')) {
+        return;
+      }
+      
+      console.log('✅ 申請承認開始:', rowNumber, userName);
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          console.log('✅ 申請承認成功:', result);
+          alert(userName + ' さんの申請を承認しました');
+          // 承認後は申請承認タブを再表示
+          refreshApplicationTab();
+        })
+        .withFailureHandler(function(error) {
+          console.error('❌ 申請承認エラー:', error);
+          if (error.message && error.message.includes('既に処理されています')) {
+            alert('この申請は既に他の管理者によって処理されています。\n画面を更新して最新の状態をご確認ください。');
+            refreshApplicationTab();
+          } else {
+            alert('申請の承認に失敗しました: ' + error.message);
+          }
+        })
+        .approveRecord({
+          rowNumber: rowNumber,
+          status: 'Approved'
+        });
+    }
+    
+    // 申請却下
+    function rejectApplication(rowNumber, userName) {
+      if (!confirm(userName + ' さんの申請を却下しますか？')) {
+        return;
+      }
+      
+      console.log('❌ 申請却下開始:', rowNumber, userName);
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          console.log('✅ 申請却下成功:', result);
+          alert(userName + ' さんの申請を却下しました');
+          // 却下後は申請承認タブを再表示
+          refreshApplicationTab();
+        })
+        .withFailureHandler(function(error) {
+          console.error('❌ 申請却下エラー:', error);
+          if (error.message && error.message.includes('既に処理されています')) {
+            alert('この申請は既に他の管理者によって処理されています。\n画面を更新して最新の状態をご確認ください。');
+            refreshApplicationTab();
+          } else {
+            alert('申請の却下に失敗しました: ' + error.message);
+          }
+        })
+        .approveRecord({
+          rowNumber: rowNumber,
+          status: 'Rejected'
+        });
+    }
+    
+    // 申請承認タブを再表示する関数
+    function refreshApplicationTab() {
+      // 申請承認タブをアクティブにする
+      showTab('applications');
+      // データを再読み込み
+      loadApplications();
+    }
+  </script>
+  
+  <!-- URL管理タブ -->
+  <div id="url-managementTab" class="tab-content">
+    <h2>URL管理</h2>
+    
+    <div class="controls">
+      <div style="flex: 1;">
+        <h3>個人URL管理</h3>
+        <p>利用者ごとの専用アクセスURLを管理します。</p>
+      </div>
+      <div>
+        <button onclick="generateAllUrls()" style="background: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 5px; margin-right: 10px;">
+          全員のURL生成
+        </button>
+        <button onclick="refreshUrlList()" style="background: #2196F3; color: white; padding: 10px 20px; border: none; border-radius: 5px;">
+          一覧を更新
+        </button>
+      </div>
+    </div>
+    
+    <div id="urlGenerationStatus" style="margin: 20px 0; padding: 15px; border-radius: 5px; display: none;"></div>
+    
+    <table id="urlTable" style="display: none;">
+      <thead>
+        <tr>
+          <th>利用者番号</th>
+          <th>利用者名</th>
+          <th>URLキー</th>
+          <th>専用URL</th>
+          <th>作成日</th>
+          <th>最終アクセス</th>
+          <th>ステータス</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="urlTableBody">
+      </tbody>
+    </table>
+    
+    <div id="urlTableEmpty" style="text-align: center; color: #666; margin-top: 40px;">
+      URLキーが生成されていません。「全員のURL生成」ボタンをクリックしてください。
+    </div>
+  </div>
+
+  <script>
+    // URL管理機能のJavaScript
+    
+    function generateAllUrls() {
+      var statusDiv = document.getElementById('urlGenerationStatus');
+      statusDiv.style.display = 'block';
+      statusDiv.style.background = '#fff3cd';
+      statusDiv.style.border = '1px solid #ffeaa7';
+      statusDiv.style.color = '#856404';
+      statusDiv.innerHTML = '<strong>処理中...</strong> 全利用者のURLキーを生成しています。しばらくお待ちください。';
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          console.log('URL生成結果:', result);
+          
+          if (result.success) {
+            statusDiv.style.background = '#d4edda';
+            statusDiv.style.border = '1px solid #c3e6cb';
+            statusDiv.style.color = '#155724';
+            statusDiv.innerHTML = '<strong>完了!</strong> ' + result.message;
+            
+            // 結果を表示
+            displayUrlResults(result.results);
+            refreshUrlList();
+          } else {
+            statusDiv.style.background = '#f8d7da';
+            statusDiv.style.border = '1px solid #f5c6cb';
+            statusDiv.style.color = '#721c24';
+            statusDiv.innerHTML = '<strong>エラー:</strong> ' + result.message;
+          }
+        })
+        .withFailureHandler(function(error) {
+          statusDiv.style.background = '#f8d7da';
+          statusDiv.style.border = '1px solid #f5c6cb';
+          statusDiv.style.color = '#721c24';
+          statusDiv.innerHTML = '<strong>システムエラー:</strong> ' + error.message;
+        })
+        .generateAllUserUrls();
+    }
+    
+    function refreshUrlList() {
+      // URL一覧を取得する機能（実装が必要）
+      console.log('URL一覧の更新');
+      // この機能は次の実装で追加予定
+    }
+    
+    function displayUrlResults(results) {
+      var table = document.getElementById('urlTable');
+      var tbody = document.getElementById('urlTableBody');
+      var emptyDiv = document.getElementById('urlTableEmpty');
+      
+      if (results && results.length > 0) {
+        tbody.innerHTML = '';
+        
+        results.forEach(function(item) {
+          var row = tbody.insertRow();
+          
+          if (item.success) {
+            var truncatedKey = item.urlKey.substring(0, 8) + '...';
+            var shortUrl = item.url.substring(0, 50) + '...';
+            
+            row.innerHTML = `
+              <td>${item.userId}</td>
+              <td>${item.userName}</td>
+              <td title="${item.urlKey}">${truncatedKey}</td>
+              <td>
+                <a href="${item.url}" target="_blank" title="${item.url}">${shortUrl}</a>
+              </td>
+              <td>新規作成</td>
+              <td>-</td>
+              <td style="color: #4CAF50; font-weight: bold;">active</td>
+              <td>
+                <button onclick="copyUrl('${item.url}')" style="background: #2196F3; color: white; border: none; padding: 5px 10px; border-radius: 3px; margin-right: 5px;">
+                  URLコピー
+                </button>
+                <button onclick="deactivateUrl('${item.userId}')" style="background: #f44336; color: white; border: none; padding: 5px 10px; border-radius: 3px;">
+                  無効化
+                </button>
+              </td>
+            `;
+          } else {
+            row.innerHTML = `
+              <td>${item.userId}</td>
+              <td>${item.userName}</td>
+              <td colspan="4" style="color: #f44336;">エラー: ${item.error}</td>
+              <td style="color: #f44336;">failed</td>
+              <td>-</td>
+            `;
+          }
+        });
+        
+        table.style.display = 'table';
+        emptyDiv.style.display = 'none';
+      } else {
+        table.style.display = 'none';
+        emptyDiv.style.display = 'block';
+      }
+    }
+    
+    function copyUrl(url) {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(url).then(function() {
+          alert('URLをクリップボードにコピーしました');
+        }).catch(function(err) {
+          console.error('クリップボードへのコピーに失敗:', err);
+          fallbackCopyUrl(url);
+        });
+      } else {
+        fallbackCopyUrl(url);
+      }
+    }
+    
+    function fallbackCopyUrl(url) {
+      var textArea = document.createElement("textarea");
+      textArea.value = url;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-999999px";
+      textArea.style.top = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      try {
+        document.execCommand('copy');
+        alert('URLをクリップボードにコピーしました');
+      } catch (err) {
+        prompt('以下のURLをコピーしてください:', url);
+      }
+      
+      document.body.removeChild(textArea);
+    }
+    
+    function deactivateUrl(userId) {
+      if (!confirm('利用者 ' + userId + ' のURLキーを無効化しますか？\n無効化後は該当URLでアクセスできなくなります。')) {
+        return;
+      }
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result) {
+            alert('URLキーを無効化しました');
+            refreshUrlList();
+          } else {
+            alert('URLキーの無効化に失敗しました');
+          }
+        })
+        .withFailureHandler(function(error) {
+          alert('システムエラー: ' + error.message);
+        })
+        .deactivateUserUrl(userId);
+    }
+    
+    // タブ切り替え機能を拡張
+    function showTab(tabName) {
+      // 既存のタブ切り替え処理
+      var tabs = document.querySelectorAll('.tab-content');
+      var buttons = document.querySelectorAll('.tab-button');
+      
+      tabs.forEach(function(tab) {
+        tab.classList.remove('active');
+      });
+      
+      buttons.forEach(function(button) {
+        button.classList.remove('active');
+      });
+      
+      var targetTab = document.getElementById(tabName + 'Tab');
+      if (targetTab) {
+        targetTab.classList.add('active');
+      }
+      
+      event.target.classList.add('active');
+      
+      // URL管理タブが選択された場合の初期化
+      if (tabName === 'url-management') {
+        console.log('URL管理タブが選択されました');
+        // 必要に応じて初期データロード
+      }
+    }
+  </script>
+</body>
+</html>

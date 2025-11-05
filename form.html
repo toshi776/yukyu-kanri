@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>有給申請フォーム（開発環境）</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    
+    .container {
+      background-color: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    
+    h1 {
+      color: #333;
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 28px;
+    }
+    
+    h2 {
+      color: #4CAF50;
+      border-bottom: 2px solid #4CAF50;
+      padding-bottom: 10px;
+      margin-top: 30px;
+      font-size: 22px;
+    }
+    
+    .form-group {
+      margin-bottom: 25px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+      color: #555;
+      font-size: 18px;
+    }
+    
+    input[type="date"], select {
+      width: 100%;
+      padding: 15px;
+      border: 2px solid #ddd;
+      border-radius: 4px;
+      font-size: 20px;
+      box-sizing: border-box;
+      transition: border-color 0.3s ease;
+    }
+    
+    input[type="date"]:focus, select:focus {
+      outline: 3px solid #4CAF50;
+      outline-offset: 2px;
+      border-color: #4CAF50;
+    }
+    
+    input[type="date"]:invalid {
+      border-color: #f44336;
+    }
+    
+    button {
+      background-color: #4CAF50;
+      color: white;
+      padding: 15px 30px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 20px;
+      width: 100%;
+      font-weight: bold;
+    }
+    
+    button:hover {
+      background-color: #45a049;
+    }
+    
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    
+    .info-box {
+      background-color: #e8f5e9;
+      border-left: 4px solid #4CAF50;
+      padding: 20px;
+      margin-bottom: 25px;
+      font-size: 20px;
+      line-height: 1.6;
+    }
+    
+    .warning-box {
+      background-color: #fff3cd;
+      border-left: 4px solid #ff9800;
+      padding: 20px;
+      margin-bottom: 25px;
+      color: #856404;
+      font-size: 18px;
+    }
+    
+    .error-box {
+      background-color: #ffebee;
+      border-left: 4px solid #f44336;
+      padding: 20px;
+      margin-bottom: 25px;
+      color: #c62828;
+      font-size: 18px;
+      text-align: center;
+    }
+    
+    .success {
+      color: #4CAF50;
+      font-size: 18px;
+      margin-top: 10px;
+      padding: 15px;
+      background-color: #e8f5e9;
+      border-radius: 4px;
+      text-align: center;
+    }
+    
+    .loading {
+      text-align: center;
+      color: #666;
+      padding: 30px;
+      font-size: 20px;
+    }
+    
+    .remaining-days {
+      font-size: 32px;
+      font-weight: bold;
+      color: #4CAF50;
+    }
+    
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      font-size: 16px;
+    }
+    
+    .history-table th {
+      background-color: #4CAF50;
+      color: white;
+      padding: 12px;
+      text-align: left;
+      border: 1px solid #4CAF50;
+    }
+    
+    .history-table td {
+      padding: 12px;
+      border: 1px solid #ddd;
+    }
+    
+    .cancel-btn {
+      background-color: #f44336;
+      color: white;
+      padding: 8px 20px;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 16px;
+      width: auto;
+    }
+    
+    .status-canceled {
+      color: #f44336;
+      font-weight: bold;
+    }
+    
+    /* 有給予定スタイル */
+    .upcoming-vacation {
+      background-color: #e3f2fd;
+      border-left: 4px solid #2196f3;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .approved-vacation {
+      background-color: #e8f5e9;
+      border-left: 4px solid #4CAF50;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .vacation-date {
+      font-size: 18px;
+      font-weight: bold;
+      color: #1976d2;
+    }
+    
+    .approved-vacation .vacation-date {
+      color: #2e7d32;
+    }
+    
+    .vacation-status {
+      color: #ff9800;
+      font-weight: bold;
+    }
+    
+    .vacation-approved {
+      color: #4CAF50;
+      font-weight: bold;
+    }
+    
+    .no-upcoming-vacations {
+      text-align: center;
+      color: #666;
+      padding: 20px;
+      font-style: italic;
+    }
+    
+    .vacation-section h4 {
+      margin-bottom: 15px;
+      color: #333;
+      font-size: 16px;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 5px;
+    }
+    
+    /* アクセシビリティ向上スタイル */
+    .required {
+      color: #f44336;
+      font-weight: bold;
+      margin-left: 4px;
+    }
+    
+    .help-text {
+      font-size: 16px;
+      color: #666;
+      margin-top: 8px;
+      line-height: 1.4;
+    }
+    
+    /* フォーカス・ホバー時の視認性向上 */
+    button:focus {
+      outline: 3px solid #2e7d32;
+      outline-offset: 2px;
+    }
+    
+    .cancel-btn:focus {
+      outline: 3px solid #c62828;
+      outline-offset: 2px;
+    }
+    
+    /* WCAG 2.1 AA準拠 - 高コントラスト対応強化 */
+    @media (prefers-contrast: high) {
+      .info-box {
+        border-left-width: 6px;
+        background-color: #f0f8ff;
+        border-color: #2e7d32;
+      }
+      
+      .warning-box {
+        border-left-width: 6px;
+        background-color: #fffbf0;
+        border-color: #e65100;
+      }
+      
+      .error-box {
+        border-left-width: 6px;
+        background-color: #fff5f5;
+        border-color: #d32f2f;
+      }
+      
+      button {
+        border: 2px solid #2e7d32;
+      }
+      
+      input[type="date"], select {
+        border-width: 3px;
+      }
+    }
+    
+    /* 動作軽減設定対応 */
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+    
+    /* スクリーンリーダー専用コンテンツ */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    
+    /* スマートフォン対応強化 */
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+      
+      .container {
+        padding: 20px;
+      }
+      
+      h1 {
+        font-size: 24px;
+        margin-bottom: 20px;
+      }
+      
+      h2 {
+        font-size: 20px;
+      }
+      
+      /* タッチ操作のためボタンサイズを拡大 */
+      button {
+        padding: 18px 30px;
+        font-size: 18px;
+        margin: 10px 0;
+        min-height: 48px; /* タッチターゲットの最小サイズ */
+      }
+      
+      .cancel-btn {
+        padding: 12px 24px;
+        font-size: 14px;
+        min-height: 44px;
+      }
+      
+      /* 入力フィールドのサイズ調整 */
+      input[type="date"], select {
+        padding: 18px;
+        font-size: 18px;
+        min-height: 48px;
+      }
+      
+      /* テーブルの横スクロール対応 */
+      .history-table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+      
+      .history-table thead,
+      .history-table tbody,
+      .history-table th,
+      .history-table td,
+      .history-table tr {
+        display: block;
+      }
+      
+      .history-table thead tr {
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+      }
+      
+      .history-table tr {
+        border: 1px solid #ddd;
+        margin-bottom: 10px;
+        padding: 10px;
+        border-radius: 4px;
+      }
+      
+      .history-table td {
+        border: none;
+        position: relative;
+        padding-left: 50%;
+        white-space: normal;
+      }
+      
+      .history-table td:before {
+        content: attr(data-label);
+        position: absolute;
+        left: 6px;
+        width: 45%;
+        padding-right: 10px;
+        white-space: nowrap;
+        font-weight: bold;
+      }
+      
+      /* 有給予定カードの調整 */
+      .upcoming-vacation,
+      .approved-vacation {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      
+      .vacation-date {
+        font-size: 16px;
+      }
+    }
+    
+    /* 極小画面対応 */
+    @media (max-width: 480px) {
+      .container {
+        padding: 15px;
+      }
+      
+      h1 {
+        font-size: 22px;
+      }
+      
+      .info-box,
+      .warning-box,
+      .error-box {
+        padding: 15px;
+        font-size: 16px;
+      }
+      
+      .remaining-days {
+        font-size: 28px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="loadingContainer" class="container">
+    <div class="loading">読み込み中...</div>
+  </div>
+  
+  <div id="errorContainer" class="container" style="display: none;">
+    <h1>エラー</h1>
+    <div class="error-box">
+      <p id="errorMessage"></p>
+      <p>正しいURLをご確認ください。</p>
+    </div>
+  </div>
+  
+  <div id="mainContainer" style="display: none;">
+    <div class="container">
+      <h1 role="banner">
+        <span class="sr-only">有給休暇</span>申請フォーム【開発環境】
+      </h1>
+      
+      <div class="info-box">
+        <strong style="font-size: 24px;"><span id="userName"></span> 様</strong><br>
+        <div style="margin-top: 10px;">
+          現在の有給残日数: <span id="remaining" class="remaining-days"></span>
+        </div>
+      </div>
+      
+      <!-- 有給予定表示 -->
+      <div id="upcomingVacationsContainer" class="container">
+        <h3>有給予定</h3>
+        
+        <!-- 承認済みの有給予定 -->
+        <div id="approvedVacationsSection">
+          <h4>確定した有給予定</h4>
+          <div id="approvedVacationsContent">
+            <div style="text-align: center; color: #666; padding: 20px;">読み込み中...</div>
+          </div>
+        </div>
+        
+        <!-- 申請中の有給予定 -->
+        <div id="pendingVacationsSection">
+          <h4>申請中の有給予定</h4>
+          <div id="pendingVacationsContent">
+            <div style="text-align: center; color: #666; padding: 20px;">読み込み中...</div>
+          </div>
+        </div>
+      </div>
+      
+      <div id="applicationForm">
+        <div class="form-group">
+          <label for="applyDate">
+            申請する日を選んでください<span class="required" aria-label="必須項目">*</span>
+          </label>
+          <input 
+            type="date" 
+            id="applyDate" 
+            aria-describedby="dateHelp dateValidation"
+            aria-required="true"
+            aria-invalid="false"
+            required
+          >
+          <div id="dateHelp" class="help-text">
+            明日以降の日付を選択してください（3ヶ月以内）<br>
+            <strong>注意:</strong> 土日祝日・会社休日は自動で確認されます
+          </div>
+          <div id="dateValidation" role="status" aria-live="polite" class="help-text"></div>
+        </div>
+        
+        <div class="form-group">
+          <label for="applyDays">申請する日数</label>
+          <select 
+            id="applyDays" 
+            aria-describedby="daysHelp"
+            aria-invalid="false"
+          >
+            <option value="1" selected>1日（終日）</option>
+            <option value="0.5">0.5日（半日）</option>
+          </select>
+          <div id="daysHelp" class="help-text">
+            半日の場合は、午前または午後のいずれかが対象となります<br>
+            <small>※ 詳細は申請後に上司にご確認ください</small>
+          </div>
+        </div>
+        
+        <div class="warning-box">
+          ※ 申請日の前日までは取り消しができます
+        </div>
+        
+        <button 
+          id="submitBtn" 
+          onclick="submitApplication()"
+          aria-describedby="submitMessage"
+          type="button"
+          class="main-submit-btn"
+        >
+          <span aria-hidden="true">📅</span> 申請する
+        </button>
+        <div id="submitMessage" role="alert" aria-live="assertive"></div>
+      </div>
+    </div>
+    
+    <div class="container">
+      <h2>申請履歴</h2>
+      <div id="historyContent">
+        <div class="loading">履歴を読み込み中...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // グローバル変数
+    var currentUser = null;
+    var userId = null;
+    
+    // ページ読み込み時の処理
+    window.addEventListener('DOMContentLoaded', function() {
+      console.log('DOMContentLoaded');
+      initializeForm();
+    });
+    
+    // 初期化処理
+    function initializeForm() {
+      console.log('初期化開始');
+      
+      // GASから渡されたuserIdを確認
+      if (typeof userIdFromGAS !== 'undefined' && userIdFromGAS) {
+        userId = userIdFromGAS;
+        console.log('userId from GAS:', userId);
+      } else {
+        // userIdが取得できない場合はプロンプトで入力
+        userId = prompt('利用者番号を入力してください:', '123456');
+        if (!userId) {
+          showError('利用者番号が入力されませんでした');
+          return;
+        }
+      }
+      
+      // 日付の初期設定
+      setupDateInput();
+      
+      // ユーザー情報を読み込み
+      loadUserInfo();
+    }
+    
+    // エラー表示
+    function showError(message) {
+      document.getElementById('loadingContainer').style.display = 'none';
+      document.getElementById('errorContainer').style.display = 'block';
+      document.getElementById('errorMessage').textContent = message;
+    }
+    
+    // ユーザー情報読み込み
+    function loadUserInfo() {
+      console.log('ユーザー情報読み込み開始:', userId);
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          console.log('findUser成功:', result);
+          if (result && result.found) {
+            currentUser = result.user;
+            showMainContent();
+          } else {
+            showError('利用者が見つかりません');
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('エラー:', error);
+          showError('エラーが発生しました: ' + error.message);
+        })
+        .findUser(userId);
+    }
+    
+    // メイン画面表示
+    function showMainContent() {
+      document.getElementById('loadingContainer').style.display = 'none';
+      document.getElementById('mainContainer').style.display = 'block';
+      
+      // ユーザー情報表示
+      document.getElementById('userName').textContent = currentUser.name;
+      document.getElementById('remaining').textContent = currentUser.remaining + ' 日';
+      
+      // 残日数が0の場合
+      if (currentUser.remaining <= 0) {
+        document.getElementById('applicationForm').innerHTML = 
+          '<div class="error-box">有給残日数が不足しています</div>';
+      }
+      
+      // 申請履歴読み込み
+      loadApplicationHistory();
+      
+      // 申請中の有給予定を読み込み
+      loadUpcomingVacations();
+    }
+    
+    // 有給予定読み込み
+    function loadUpcomingVacations() {
+      console.log('=== 有給予定読み込み開始 ===');
+      
+      google.script.run
+        .withSuccessHandler(function(applications) {
+          console.log('有給予定取得成功:', applications);
+          displayVacations(applications);
+        })
+        .withFailureHandler(function(error) {
+          console.error('有給予定取得エラー:', error);
+          document.getElementById('approvedVacationsContent').innerHTML = 
+            '<div class="no-upcoming-vacations">有給予定の取得に失敗しました</div>';
+          document.getElementById('pendingVacationsContent').innerHTML = 
+            '<div class="no-upcoming-vacations">有給予定の取得に失敗しました</div>';
+        })
+        .getUserApplications(userId);
+    }
+    
+    // 有給予定表示（承認済みと申請中を分けて表示）
+    function displayVacations(applications) {
+      var approvedContent = document.getElementById('approvedVacationsContent');
+      var pendingContent = document.getElementById('pendingVacationsContent');
+      
+      if (!applications || applications.length === 0) {
+        approvedContent.innerHTML = '<div class="no-upcoming-vacations">確定した有給予定はありません</div>';
+        pendingContent.innerHTML = '<div class="no-upcoming-vacations">申請中の有給予定はありません</div>';
+        return;
+      }
+      
+      // 今日の日付を取得
+      var today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // 申請日が今日以降のもので、却下済みでないものを抽出
+      var futureApplications = applications.filter(function(app) {
+        var applyDate = new Date(app.applyDate);
+        return applyDate >= today && app.status !== 'Rejected';
+      });
+      
+      // 承認済みと申請中に分ける
+      var approvedVacations = futureApplications.filter(function(app) {
+        return app.status === 'Approved';
+      });
+      
+      var pendingVacations = futureApplications.filter(function(app) {
+        return app.status === 'Pending';
+      });
+      
+      // 申請日でソート
+      approvedVacations.sort(function(a, b) {
+        return new Date(a.applyDate) - new Date(b.applyDate);
+      });
+      
+      pendingVacations.sort(function(a, b) {
+        return new Date(a.applyDate) - new Date(b.applyDate);
+      });
+      
+      // 承認済み有給予定の表示
+      if (approvedVacations.length === 0) {
+        approvedContent.innerHTML = '<div class="no-upcoming-vacations">確定した有給予定はありません</div>';
+      } else {
+        var approvedHtml = '';
+        approvedVacations.forEach(function(vacation) {
+          var daysText = vacation.applyDays === 0.5 ? '（半日）' : '';
+          approvedHtml += '<div class="approved-vacation">';
+          approvedHtml += '<div class="vacation-date">' + vacation.applyDate + daysText + '</div>';
+          approvedHtml += '<div class="vacation-approved">確定</div>';
+          approvedHtml += '</div>';
+        });
+        approvedContent.innerHTML = approvedHtml;
+      }
+      
+      // 申請中有給予定の表示
+      if (pendingVacations.length === 0) {
+        pendingContent.innerHTML = '<div class="no-upcoming-vacations">申請中の有給予定はありません</div>';
+      } else {
+        var pendingHtml = '';
+        pendingVacations.forEach(function(vacation) {
+          var daysText = vacation.applyDays === 0.5 ? '（半日）' : '';
+          pendingHtml += '<div class="upcoming-vacation">';
+          pendingHtml += '<div class="vacation-date">' + vacation.applyDate + daysText + '</div>';
+          pendingHtml += '<div class="vacation-status">承認待ち</div>';
+          pendingHtml += '</div>';
+        });
+        pendingContent.innerHTML = pendingHtml;
+      }
+    }
+    
+    // 申請履歴読み込み
+    function loadApplicationHistory() {
+      console.log('=== 申請履歴読み込み開始 ===');
+      console.log('userId:', userId);
+      
+      google.script.run
+        .withSuccessHandler(function(applications) {
+          console.log('履歴取得成功');
+          console.log('取得データ:', applications);
+          console.log('データ型:', typeof applications);
+          console.log('配列かどうか:', Array.isArray(applications));
+          console.log('件数:', applications ? applications.length : 'null or undefined');
+          
+          if (applications && applications.length > 0) {
+            console.log('最初のデータ:', applications[0]);
+            console.log('データのキー:', Object.keys(applications[0]));
+          }
+          
+          displayHistory(applications);
+        })
+        .withFailureHandler(function(error) {
+          console.error('履歴取得エラー:', error);
+          console.error('エラー詳細:', error.message);
+          document.getElementById('historyContent').innerHTML = 
+            '<div style="color: red;">履歴の読み込みに失敗しました: ' + error.message + '</div>';
+        })
+        .getUserApplications(userId);  // ← testSimpleReturnではなく、getUserApplicationsに戻す
+    }
+    
+    // 履歴表示
+    function displayHistory(applications) {
+      var content = document.getElementById('historyContent');
+      
+      if (!applications || applications.length === 0) {
+        content.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">申請履歴はありません</div>';
+        return;
+      }
+      
+      // 取消済み、却下済みの履歴と取り消し不可のレコードを除外
+      var activeApplications = applications.filter(function(app) {
+        return app.status !== 'Canceled' && app.status !== 'Rejected' && app.canCancel === true;
+      });
+      
+      if (activeApplications.length === 0) {
+        content.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">申請履歴はありません</div>';
+        return;
+      }
+      
+      var html = '<table class="history-table"><thead><tr>' +
+                 '<th>申請日</th><th>日数</th><th>申請した日時</th><th>状態</th><th>操作</th>' +
+                 '</tr></thead><tbody>';
+      
+      activeApplications.forEach(function(app) {
+        var daysText = app.applyDays === 0.5 ? '0.5日' : '1日';
+        html += '<tr>';
+        html += '<td>' + app.applyDate + '</td>';
+        html += '<td>' + daysText + '</td>';
+        html += '<td>' + app.timestamp + '</td>';
+        html += '<td>' + (app.status === 'Approved' ? '承認済' : '申請中') + '</td>';
+        html += '<td>';
+        if (app.canCancel) {
+          html += '<button class="cancel-btn" onclick="cancelApplication(' + app.rowNumber + ')">取り消す</button>';
+        } else {
+          html += '<span style="color: #999;">取消不可</span>';
+        }
+        html += '</td></tr>';
+      });
+      
+      html += '</tbody></table>';
+      content.innerHTML = html;
+    }
+    
+    // 申請送信（画面更新版）
+    function submitApplication() {
+      var applyDate = document.getElementById('applyDate').value;
+      var applyDays = parseFloat(document.getElementById('applyDays').value);
+      
+      // 入力検証
+      var validationResult = validateApplicationInput(applyDate, applyDays);
+      if (!validationResult.isValid) {
+        showValidationError(validationResult.message);
+        return;
+      }
+      
+      // 日付を日本語形式で表示
+      var dateObj = new Date(applyDate);
+      var formattedDate = dateObj.getFullYear() + '年' + 
+                          (dateObj.getMonth() + 1) + '月' + 
+                          dateObj.getDate() + '日';
+      
+      var daysText = applyDays === 0.5 ? '0.5日（半日）' : '1日';
+      
+      if (!confirm(formattedDate + ' に' + daysText + 'の有給を申請します。\nよろしいですか？')) {
+        return;
+      }
+      
+      document.getElementById('submitBtn').disabled = true;
+      document.getElementById('submitBtn').textContent = '送信中...';
+      document.getElementById('submitMessage').innerHTML = ''; // メッセージをクリア
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          // 成功メッセージを表示
+          showSuccessMessage('申請が完了しました！ 残日数: ' + result.newRemaining + '日');
+          
+          // 画面を元に戻す（少し遅らせて見えるようにする）
+          setTimeout(function() {
+            refreshScreen();
+          }, 2000);
+        })
+        .withFailureHandler(function(error) {
+          showValidationError('申請中にエラーが発生しました: ' + error.message);
+          document.getElementById('submitBtn').disabled = false;
+          document.getElementById('submitBtn').textContent = '申請する';
+        })
+        .submitRequest({
+          userId: userId,
+          applyDate: applyDate,
+          applyDays: applyDays
+        });
+    }
+
+    // 申請取消（画面更新版）
+    function cancelApplication(rowNumber) {
+      if (!showConfirmDialog('この申請を取り消しますか？')) {
+        return;
+      }
+      
+      // 取り消し処理中の表示
+      var messageElement = document.getElementById('submitMessage');
+      messageElement.innerHTML = '<div class="info-box">申請を取り消し中...</div>';
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          showSuccessMessage('取り消しが完了しました。有給残日数: ' + result.newRemaining + '日');
+          
+          // 画面を元に戻す
+          setTimeout(function() {
+            refreshScreen();
+          }, 2000);
+        })
+        .withFailureHandler(function(error) {
+          if (error.message && (error.message.includes('承認済み') || error.message.includes('却下済み') || error.message.includes('処理できない状態'))) {
+            showValidationError('この申請は既に管理者によって処理されています。最新の状態を表示します。');
+            setTimeout(function() {
+              refreshScreen();
+            }, 3000);
+          } else {
+            showValidationError('取り消し中にエラーが発生しました: ' + error.message);
+          }
+        })
+        .cancelUserApplication({
+          userId: userId,
+          rowNumber: rowNumber
+        });
+    }
+
+    // 入力検証関数（強化版）
+    function validateApplicationInput(applyDate, applyDays) {
+      try {
+        // 必須項目チェック
+        if (!applyDate) {
+          updateAriaInvalid('applyDate', true);
+          return { 
+            isValid: false, 
+            message: '申請日を選択してください',
+            field: 'applyDate'
+          };
+        }
+        
+        // 日付形式チェック
+        var dateObj = new Date(applyDate);
+        if (isNaN(dateObj.getTime())) {
+          updateAriaInvalid('applyDate', true);
+          return { 
+            isValid: false, 
+            message: '正しい日付を選択してください',
+            field: 'applyDate'
+          };
+        }
+        
+        // 過去日チェック
+        var today = new Date();
+        today.setHours(0, 0, 0, 0);
+        dateObj.setHours(0, 0, 0, 0);
+        
+        if (dateObj <= today) {
+          updateAriaInvalid('applyDate', true);
+          return { 
+            isValid: false, 
+            message: '申請日は明日以降を選択してください',
+            field: 'applyDate'
+          };
+        }
+        
+        // 3ヶ月先までの制限
+        var maxDate = new Date();
+        maxDate.setMonth(maxDate.getMonth() + 3);
+        if (dateObj > maxDate) {
+          updateAriaInvalid('applyDate', true);
+          return { 
+            isValid: false, 
+            message: '申請日は3ヶ月以内で選択してください',
+            field: 'applyDate'
+          };
+        }
+        
+        // 日数チェック
+        if (applyDays !== 1 && applyDays !== 0.5) {
+          updateAriaInvalid('applyDays', true);
+          return { 
+            isValid: false, 
+            message: '申請日数が正しくありません',
+            field: 'applyDays'
+          };
+        }
+        
+        // 残日数チェック
+        if (currentUser && applyDays > currentUser.remaining) {
+          updateAriaInvalid('applyDays', true);
+          return { 
+            isValid: false, 
+            message: '有給残日数が不足しています（残り: ' + currentUser.remaining + '日、申請: ' + applyDays + '日）',
+            field: 'applyDays'
+          };
+        }
+        
+        // 祝日・休日チェック
+        var holidayCheck = checkHolidaysAndWeekends(dateObj);
+        if (!holidayCheck.isValid) {
+          updateAriaInvalid('applyDate', true);
+          return holidayCheck;
+        }
+        
+        // すべてのチェックが成功した場合
+        updateAriaInvalid('applyDate', false);
+        updateAriaInvalid('applyDays', false);
+        
+        return { isValid: true };
+        
+      } catch (error) {
+        console.error('検証エラー:', error);
+        return { 
+          isValid: false, 
+          message: '検証中にエラーが発生しました。再度お試しください。' 
+        };
+      }
+    }
+    
+    // 祝日・休日チェック関数
+    function checkHolidaysAndWeekends(dateObj) {
+      var dayOfWeek = dateObj.getDay();
+      var month = dateObj.getMonth() + 1;
+      var date = dateObj.getDate();
+      
+      // 土日チェック（警告）
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        var dayName = dayOfWeek === 0 ? '日曜日' : '土曜日';
+        return { 
+          isValid: false, 
+          message: dayName + 'が選択されています。休日の有給申請は通常不要です。必要な場合は上司にご相談ください。',
+          isWarning: true,
+          field: 'applyDate'
+        };
+      }
+      
+      // 固定祝日チェック
+      var nationalHolidays = {
+        '1-1': '元日',
+        '2-11': '建国記念日',
+        '2-23': '天皇誕生日',
+        '4-29': '昭和の日',
+        '5-3': '憲法記念日',
+        '5-4': 'みどりの日',
+        '5-5': 'こどもの日',
+        '8-11': '山の日',
+        '11-3': '文化の日',
+        '11-23': '勤労感謝の日',
+        '12-29': '年末休暩',
+        '12-30': '年末休暩',
+        '12-31': '年末休暩'
+      };
+      
+      var dateKey = month + '-' + date;
+      if (nationalHolidays[dateKey]) {
+        return {
+          isValid: false,
+          message: '選択された日付は' + nationalHolidays[dateKey] + 'です。祝日の有給申請は通常不要です。',
+          isWarning: true,
+          field: 'applyDate'
+        };
+      }
+      
+      // 会社休日（お盆休み）
+      if (month === 8 && date >= 13 && date <= 16) {
+        return {
+          isValid: false,
+          message: '選択された日付はお盆休み期間中です。会社休日の有給申請は通常不要です。',
+          isWarning: true,
+          field: 'applyDate'
+        };
+      }
+      
+      return { isValid: true };
+    }
+    
+    // ARIA属性更新ヘルパー
+    function updateAriaInvalid(fieldId, isInvalid) {
+      var element = document.getElementById(fieldId);
+      if (element) {
+        element.setAttribute('aria-invalid', isInvalid.toString());
+      }
+    }
+    
+    // 検証エラー表示（強化版）
+    function showValidationError(message, isWarning = false) {
+      var messageElement = document.getElementById('submitMessage');
+      var className = isWarning ? 'warning-box' : 'error-box';
+      var ariaLabel = isWarning ? '警告' : 'エラー';
+      
+      // アクセシビリティ強化
+      messageElement.innerHTML = '<div class="' + className + '" role="alert" aria-live="assertive">' +
+        '<span class="sr-only">' + ariaLabel + ': </span>' + message + '</div>';
+      
+      // スムーズスクロールでメッセージを表示
+      messageElement.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center',
+        inline: 'nearest'
+      });
+      
+      // フォーカスをメッセージに移動（スクリーンリーダー用）
+      setTimeout(function() {
+        var alertElement = messageElement.querySelector('[role="alert"]');
+        if (alertElement && alertElement.focus) {
+          alertElement.setAttribute('tabindex', '-1');
+          alertElement.focus();
+        }
+      }, 100);
+    }
+    
+    // 成功メッセージ表示（強化版）
+    function showSuccessMessage(message) {
+      var messageElement = document.getElementById('submitMessage');
+      messageElement.innerHTML = '<div class="success" role="status" aria-live="polite">' +
+        '<span class="sr-only">成功: </span>' + 
+        '<span aria-hidden="true">✓</span> ' + message + '</div>';
+      
+      messageElement.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center',
+        inline: 'nearest'
+      });
+      
+      // フォーカスをメッセージに移動
+      setTimeout(function() {
+        var statusElement = messageElement.querySelector('[role="status"]');
+        if (statusElement && statusElement.focus) {
+          statusElement.setAttribute('tabindex', '-1');
+          statusElement.focus();
+        }
+      }, 100);
+    }
+    
+    // 確認ダイアログ（将来的にカスタムダイアログに置き換え可能）
+    function showConfirmDialog(message) {
+      return confirm(message); // 現状はconfirmを使用、将来的に改善予定
+    }
+    
+    // 検証メッセージをクリア（強化版）
+    function clearValidationMessage() {
+      document.getElementById('submitMessage').innerHTML = '';
+      document.getElementById('dateValidation').innerHTML = '';
+      
+      // ARIA属性をリセット
+      updateAriaInvalid('applyDate', false);
+      updateAriaInvalid('applyDays', false);
+    }
+    
+    // 日付入力の設定
+    function setupDateInput() {
+      var dateInput = document.getElementById('applyDate');
+      var tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      // デフォルト値を明日に設定
+      dateInput.value = tomorrow.toISOString().split('T')[0];
+      
+      // 最小日付を明日に設定
+      dateInput.min = tomorrow.toISOString().split('T')[0];
+      
+      // 最大日付を3ヶ月後に設定
+      var maxDate = new Date();
+      maxDate.setMonth(maxDate.getMonth() + 3);
+      dateInput.max = maxDate.toISOString().split('T')[0];
+      
+      // リアルタイム検証の追加（強化版）
+      dateInput.addEventListener('change', function() {
+        performRealTimeValidation(this.value, parseFloat(document.getElementById('applyDays').value));
+      });
+      
+      // inputイベントでも検証（ユーザビリティ向上）
+      dateInput.addEventListener('input', function() {
+        // 入力中はメッセージをクリア
+        var validationDiv = document.getElementById('dateValidation');
+        if (this.value) {
+          var dateObj = new Date(this.value);
+          var today = new Date();
+          today.setHours(0, 0, 0, 0);
+          dateObj.setHours(0, 0, 0, 0);
+          
+          if (dateObj <= today) {
+            validationDiv.innerHTML = '<span style="color: #f44336;">⚠ 明日以降の日付を選択してください</span>';
+          } else {
+            validationDiv.innerHTML = '';
+          }
+        } else {
+          validationDiv.innerHTML = '';
+        }
+      });
+      
+      // 日数変更時の検証（強化版）
+      document.getElementById('applyDays').addEventListener('change', function() {
+        var applyDate = document.getElementById('applyDate').value;
+        if (applyDate) {
+          performRealTimeValidation(applyDate, parseFloat(this.value));
+        }
+        
+        // 日数変更時の追加フィードバック
+        var selectedDays = parseFloat(this.value);
+        var remainingDays = currentUser ? currentUser.remaining : 0;
+        
+        if (selectedDays > remainingDays) {
+          showValidationError('有給残日数が不足しています（残り: ' + remainingDays + '日）');
+        } else if (selectedDays === 0.5) {
+          var validationDiv = document.getElementById('dateValidation');
+          validationDiv.innerHTML = '<span style="color: #2196f3;">ℹ 半日休暧の詳細は申請後に上司にご確認ください</span>';
+        }
+      });
+    }
+    
+    // リアルタイム検証実行関数
+    function performRealTimeValidation(applyDate, applyDays) {
+      clearValidationMessage();
+      var validationDiv = document.getElementById('dateValidation');
+      validationDiv.innerHTML = '';
+      
+      if (!applyDate) return;
+      
+      var validationResult = validateApplicationInput(applyDate, applyDays);
+      
+      if (!validationResult.isValid) {
+        if (validationResult.isWarning) {
+          // 警告メッセージはメインエリアに表示
+          showValidationError(validationResult.message, true);
+        } else {
+          // エラーメッセージはメインエリアに表示
+          showValidationError(validationResult.message, false);
+        }
+      } else {
+        // 成功時は簡単なフィードバック
+        validationDiv.innerHTML = '<span style="color: #4CAF50;">✓ 申請可能な日付です</span>';
+      }
+    }
+
+    // 画面を更新する関数（シンプル版）
+    function refreshScreen() {
+      console.log('画面を更新します');
+      
+      // 1. 申請日を明日にリセット
+      var tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      document.getElementById('applyDate').value = tomorrow.toISOString().split('T')[0];
+      
+      // 2. 申請ボタンを有効化
+      document.getElementById('submitBtn').disabled = false;
+      document.getElementById('submitBtn').textContent = '申請する';
+      
+      // 3. メッセージエリアをクリア
+      document.getElementById('submitMessage').innerHTML = '';
+      
+      // 4. ユーザー情報を再取得して更新
+      loadUserInfo();
+      
+      // 5. 申請中の有給予定を再読み込み
+      loadUpcomingVacations();
+    }
+  </script>
+</body>
+</html>

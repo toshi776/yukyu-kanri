@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>有給管理システム - 個人ページ</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+    
+    .header h1 {
+      font-size: 2em;
+      margin-bottom: 10px;
+      font-weight: 300;
+    }
+    
+    .header .user-info {
+      font-size: 1.2em;
+      opacity: 0.9;
+    }
+    
+    .remaining-days {
+      background: white;
+      color: #4CAF50;
+      display: inline-block;
+      padding: 15px 30px;
+      border-radius: 50px;
+      font-size: 2.5em;
+      font-weight: bold;
+      margin: 20px 0;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .remaining-days small {
+      font-size: 0.4em;
+      display: block;
+      margin-top: 5px;
+      font-weight: normal;
+    }
+    
+    .content {
+      padding: 30px;
+    }
+    
+    .section {
+      margin-bottom: 40px;
+    }
+    
+    .section h2 {
+      color: #333;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e0e0e0;
+      font-size: 1.5em;
+      font-weight: 400;
+    }
+    
+    .apply-section {
+      background: #f8f9fa;
+      padding: 25px;
+      border-radius: 10px;
+      border-left: 5px solid #4CAF50;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+      color: #555;
+      font-size: 1.1em;
+    }
+    
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 15px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.3s ease;
+    }
+    
+    .form-group input:focus, .form-group select:focus {
+      outline: none;
+      border-color: #4CAF50;
+      box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+    }
+    
+    .btn {
+      display: inline-block;
+      padding: 15px 30px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 50px;
+      font-size: 1.1em;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      text-align: center;
+      min-width: 200px;
+    }
+    
+    .btn:hover {
+      background: #45a049;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    
+    .btn:active {
+      transform: translateY(0);
+    }
+    
+    .btn:disabled {
+      background: #cccccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    
+    .applications-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: white;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    }
+    
+    .applications-table th {
+      background: #f8f9fa;
+      padding: 15px;
+      text-align: left;
+      font-weight: bold;
+      color: #555;
+      border-bottom: 2px solid #e0e0e0;
+    }
+    
+    .applications-table td {
+      padding: 15px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .applications-table tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .applications-table tr:hover {
+      background: #f8f9fa;
+    }
+    
+    .status {
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 0.9em;
+      font-weight: bold;
+      text-align: center;
+      min-width: 80px;
+      display: inline-block;
+    }
+    
+    .status.pending {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeaa7;
+    }
+    
+    .status.approved {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    
+    .status.rejected {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    
+    .cancel-btn {
+      background: #dc3545;
+      color: white;
+      border: none;
+      padding: 5px 12px;
+      border-radius: 15px;
+      font-size: 0.9em;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    
+    .cancel-btn:hover {
+      background: #c82333;
+    }
+    
+    .cancel-btn:disabled {
+      background: #cccccc;
+      cursor: not-allowed;
+    }
+    
+    .no-applications {
+      text-align: center;
+      color: #666;
+      font-style: italic;
+      padding: 40px;
+    }
+    
+    .alert {
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 8px;
+      font-weight: bold;
+    }
+    
+    .alert.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    
+    .alert.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    
+    .alert.warning {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeaa7;
+    }
+    
+    .footer {
+      background: #f8f9fa;
+      padding: 20px;
+      text-align: center;
+      color: #666;
+      font-size: 0.9em;
+    }
+    
+    .current-date {
+      text-align: center;
+      color: #666;
+      margin-bottom: 20px;
+      font-size: 1em;
+    }
+    
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+      
+      .header {
+        padding: 20px;
+      }
+      
+      .header h1 {
+        font-size: 1.5em;
+      }
+      
+      .remaining-days {
+        font-size: 2em;
+        padding: 12px 25px;
+      }
+      
+      .content {
+        padding: 20px;
+      }
+      
+      .applications-table {
+        font-size: 0.9em;
+      }
+      
+      .applications-table th, .applications-table td {
+        padding: 10px 8px;
+      }
+      
+      .btn {
+        width: 100%;
+        margin-bottom: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>有給管理システム</h1>
+      <div class="user-info"><?= userName ?>さんの専用ページ</div>
+      <div class="remaining-days">
+        <?= remainingDays ?>
+        <small>日</small>
+      </div>
+      <div class="current-date"><?= currentDate ?> 現在</div>
+    </div>
+    
+    <div class="content">
+      <!-- 有給申請セクション -->
+      <div class="section">
+        <h2>📝 有給申請</h2>
+        <div class="apply-section">
+          <form id="leaveForm">
+            <div class="form-group">
+              <label for="applyDate">申請日</label>
+              <input type="date" id="applyDate" name="applyDate" required>
+            </div>
+            
+            <div class="form-group">
+              <label for="applyDays">申請日数</label>
+              <select id="applyDays" name="applyDays">
+                <option value="1">1日</option>
+                <option value="0.5">0.5日（半日）</option>
+              </select>
+            </div>
+            
+            <button type="submit" class="btn" id="submitBtn">
+              有給申請を送信
+            </button>
+          </form>
+        </div>
+      </div>
+      
+      <!-- 申請履歴セクション -->
+      <div class="section">
+        <h2>📋 申請履歴</h2>
+        
+        <? if (applications && applications.length > 0) { ?>
+          <table class="applications-table">
+            <thead>
+              <tr>
+                <th>申請日</th>
+                <th>日数</th>
+                <th>申請日時</th>
+                <th>ステータス</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <? for (var i = 0; i < applications.length; i++) { ?>
+                <tr>
+                  <td><?= applications[i].applyDate ?></td>
+                  <td><?= applications[i].applyDays === 0.5 ? '0.5日' : '1日' ?></td>
+                  <td><?= applications[i].timestamp ?></td>
+                  <td>
+                    <span class="status <?= applications[i].status.toLowerCase() ?>">
+                      <?= applications[i].status === 'Pending' ? '承認待ち' : 
+                          applications[i].status === 'Approved' ? '承認済み' : 
+                          applications[i].status === 'Rejected' ? '却下' : applications[i].status ?>
+                    </span>
+                  </td>
+                  <td>
+                    <? if (applications[i].canCancel && applications[i].status === 'Pending') { ?>
+                      <button class="cancel-btn" onclick="cancelApplication(<?= applications[i].rowNumber ?>, '<?= applications[i].applyDate ?>')">
+                        取消
+                      </button>
+                    <? } else { ?>
+                      <span style="color: #999;">-</span>
+                    <? } ?>
+                  </td>
+                </tr>
+              <? } ?>
+            </tbody>
+          </table>
+        <? } else { ?>
+          <div class="no-applications">
+            まだ申請履歴がありません
+          </div>
+        <? } ?>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p>有給管理システム | お問い合わせは人事部門まで</p>
+      <p style="margin-top: 10px; font-size: 0.8em; color: #999;">
+        🔐 このページは<?= userName ?>さん専用です
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // ユーザー情報をJavaScript変数として設定
+    var userId = '<?= userId ?>';
+    var userName = '<?= userName ?>';
+    var remainingDays = <?= remainingDays ?>;
+    
+    // 今日の日付を取得してフォームの最小日付に設定
+    document.addEventListener('DOMContentLoaded', function() {
+      var today = new Date();
+      var tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      var dateInput = document.getElementById('applyDate');
+      dateInput.min = tomorrow.toISOString().split('T')[0];
+      
+      // 3ヶ月後までに制限
+      var maxDate = new Date(today);
+      maxDate.setMonth(maxDate.getMonth() + 3);
+      dateInput.max = maxDate.toISOString().split('T')[0];
+    });
+    
+    // フォーム送信処理
+    document.getElementById('leaveForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      var submitBtn = document.getElementById('submitBtn');
+      var applyDate = document.getElementById('applyDate').value;
+      var applyDays = parseFloat(document.getElementById('applyDays').value);
+      
+      if (!applyDate) {
+        showAlert('申請日を選択してください', 'error');
+        return;
+      }
+      
+      // 残日数チェック
+      if (remainingDays < applyDays) {
+        showAlert('有給残日数が不足しています（残り' + remainingDays + '日）', 'error');
+        return;
+      }
+      
+      // 送信中の状態に変更
+      submitBtn.disabled = true;
+      submitBtn.textContent = '送信中...';
+      
+      // Google Apps Scriptの関数を呼び出し
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showAlert('申請を送信しました。有給残日数: ' + result.newRemaining + '日', 'success');
+            
+            // 残日数を更新
+            remainingDays = result.newRemaining;
+            updateRemainingDaysDisplay(result.newRemaining);
+            
+            // フォームをリセット
+            document.getElementById('leaveForm').reset();
+            
+            // ページを再読み込みして申請履歴を更新
+            setTimeout(function() {
+              location.reload();
+            }, 2000);
+          } else {
+            showAlert('申請送信に失敗しました: ' + result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          showAlert('システムエラーが発生しました: ' + error.message, 'error');
+        })
+        .withUserObject(this)
+        .submitRequest({
+          userId: userId,
+          applyDate: applyDate,
+          applyDays: applyDays
+        })
+        .always(function() {
+          // ボタンを元に戻す
+          submitBtn.disabled = false;
+          submitBtn.textContent = '有給申請を送信';
+        });
+    });
+    
+    // 申請取消処理
+    function cancelApplication(rowNumber, applyDate) {
+      if (!confirm('申請日: ' + applyDate + '\nこの申請を取り消しますか？')) {
+        return;
+      }
+      
+      showAlert('取消処理中...', 'warning');
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showAlert(result.message, 'success');
+            
+            // 残日数を更新
+            remainingDays = result.newRemaining;
+            updateRemainingDaysDisplay(result.newRemaining);
+            
+            // ページを再読み込み
+            setTimeout(function() {
+              location.reload();
+            }, 2000);
+          } else {
+            showAlert('取消に失敗しました: ' + result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          showAlert('システムエラーが発生しました: ' + error.message, 'error');
+        })
+        .cancelUserApplication({
+          userId: userId,
+          rowNumber: rowNumber
+        });
+    }
+    
+    // アラート表示関数
+    function showAlert(message, type) {
+      // 既存のアラートを削除
+      var existingAlert = document.querySelector('.alert');
+      if (existingAlert) {
+        existingAlert.remove();
+      }
+      
+      var alertDiv = document.createElement('div');
+      alertDiv.className = 'alert ' + (type || 'info');
+      alertDiv.textContent = message;
+      
+      var content = document.querySelector('.content');
+      content.insertBefore(alertDiv, content.firstChild);
+      
+      // 5秒後に自動削除
+      setTimeout(function() {
+        if (alertDiv.parentNode) {
+          alertDiv.remove();
+        }
+      }, 5000);
+    }
+    
+    // 残日数表示を更新
+    function updateRemainingDaysDisplay(newRemaining) {
+      var remainingDaysElement = document.querySelector('.remaining-days');
+      if (remainingDaysElement) {
+        remainingDaysElement.innerHTML = newRemaining + '<small>日</small>';
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+# Python環境
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# エクセルデータ（個人情報含む）
+エクセルデータ/
+有給管理_移行データ.csv
+移行データ作成完了.txt
+
+# 一時ファイル
+.DS_Store
+*.swp
+*.swo
+*~
+.local_checksums.txt
+
+# claspバックアップ
+.clasp.json.backup
+
+# ログファイル
+*.log
+
+# IDE設定
+.vscode/
+.idea/
+
+# samples（必要に応じて）
+samples/
+docs/
