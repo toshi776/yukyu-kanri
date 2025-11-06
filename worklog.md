@@ -1,20 +1,226 @@
-# 作業ログ（2025-11-05）
+# 作業ログ
 
-## 本日の作業概要
+---
+
+## 2025-11-06: 新環境でのclasp認証問題を完全解決
+
+### 背景
+新しいノートPC（WSL2環境）で作業を開始したため、clasp認証情報（`.clasprc.json`）が存在せず、GASへのデプロイができない状態だった。昨日（11/5）も認証を試みたが、OAuth同意画面の設定不備やスコープ不足で失敗していた。
+
+### 問題の詳細
+
+#### 初期状態
+- ✅ claspインストール済み（v2.5.0）
+- ✅ `.clasp.json`（プロジェクト設定）は存在
+- ❌ `.clasprc.json`（認証情報）が不在
+- ❌ デプロイ実行不可
+
+#### 遭遇したエラー
+
+**1. 標準clasp loginでのエラー**
+```
+Error 400: invalid_request
+アクセスをブロック: clasp – The Apps Script CLI のリクエストは無効です
+```
+→ GoogleがclaspのデフォルトOAuthクライアントIDを制限している
+
+**2. カスタムOAuth認証情報でのエラー（初回）**
+```
+Error 403: access_denied
+yukyu-kanri は Google の審査プロセスを完了していません
+```
+→ OAuth同意画面でテストユーザーが未設定
+
+**3. スコープ不足エラー**
+```
+No access, refresh token, API key or refresh handler callback is set.
+```
+→ カスタム認証情報使用時、限定スコープ（`script.webapp.deploy`のみ）しか取得されず、`script.projects`などが不足
+
+### 解決手順
+
+#### ステップ1: クリーンアップ
+- 前日作成した不完全なGCPプロジェクト `yukyu-kanri` を削除
+- 認証情報をリセット
+
+#### ステップ2: 新規GCPプロジェクト作成
+- プロジェクト名: `yukyu-kanri`
+- プロジェクトID: `polynomial-net-477401-k0`
+- プロジェクト番号: `653762862710`
+
+#### ステップ3: GASスクリプトとGCPプロジェクトを関連付け
+```
+GASエディタ → プロジェクトの設定 → GCPプロジェクトを変更
+プロジェクト番号を入力: 653762862710
+```
+
+#### ステップ4: Apps Script API有効化
+```
+https://console.cloud.google.com/apis/library/script.googleapis.com?project=653762862710
+→ 「有効にする」をクリック
+```
+
+#### ステップ5: OAuth同意画面とクライアントID作成
+
+**OAuth同意画面の設定:**
+- User Type: 外部
+- アプリ名: `yukyu-kanri`
+- テストユーザー追加: `toshi776@gmail.com` ← **重要！**
+- または「アプリを公開」（個人利用の場合はこちらが簡単）
+
+**OAuthクライアントID作成:**
+- アプリケーション種類: デスクトップアプリ
+- 名前: `clasp`
+- JSONダウンロード
+
+#### ステップ6: clasp認証
+
+**カスタム認証での問題発覚:**
+カスタムOAuth認証情報を使用すると、claspが限定的なスコープしか要求しない：
+```bash
+clasp login --creds client_secret_xxx.json
+# → スコープ: script.webapp.deploy のみ（不十分）
+```
+
+**最終的な解決策:**
+標準のclasp loginを再試行したところ、今回は成功！
+```bash
+clasp login
+# → すべての必要なスコープを取得:
+#   - script.deployments
+#   - script.projects
+#   - script.webapp.deploy
+#   - drive.file
+#   - その他7スコープ
+```
+
+**成功の理由:**
+- GCPプロジェクトとの関連付けが正しく設定されていた
+- Apps Script APIが有効化されていた
+- OAuth同意画面が適切に設定されていた
+→ これらの前準備により、標準clasp loginが正常動作
+
+#### ステップ7: .clasp.json修正
+
+プロジェクトIDを追加：
+```json
+{
+  "scriptId": "1JBx6pQKBVB68Ud2pbQf6n2YmLYHeSWuM_2vV2hD9zfGdI6BC1MQJOY-6",
+  "projectId": "polynomial-net-477401-k0",  // ← 追加
+  "rootDir": ".",  // ← "" から "." に変更
+  ...
+}
+```
+
+#### ステップ8: deploy.sh修正
+
+古いclaspコマンドを最新版に対応：
+```bash
+# 修正前（v1系コマンド）
+clasp create-version "説明"
+clasp update-deployment $ID --versionNumber $NUM
+
+# 修正後（v2系コマンド）
+clasp version "説明"
+clasp deploy -i $ID -V $NUM -d "説明"
+```
+
+### 成功！
+
+```bash
+./deploy.sh
+```
+
+**結果:**
+```
+✅ バージョン作成完了: Created version 8.
+✅ デプロイ完了！
+🌐 Webアプリが更新されました
+📊 デプロイメントID: AKfycbyJNqVvi4wYJwjXEc5Y9QF7qV-08M9uk4396sAo7Lu0i0lsY2RlCtbAPVMWaeYiKeKn
+📋 バージョン: 8
+```
+
+プッシュされたファイル: 15ファイル
+- admin.html, form.html, personal.html
+- Code.js, utils.js
+- leave-grant.js, notification.js, statistics-report.js, trigger-manager.js
+- 各種テストファイル
+
+### 学んだこと・ポイント
+
+#### 1. clasp認証の正しい手順
+新環境でのclasp認証は、以下の順序が重要：
+1. GCPプロジェクト作成
+2. GASスクリプトにGCPプロジェクトを関連付け
+3. Apps Script API有効化
+4. OAuth同意画面設定（テストユーザー追加 or 公開）
+5. **標準clasp login**を実行
+
+#### 2. カスタムOAuth認証の落とし穴
+`clasp login --creds`はスコープが限定される問題がある。標準の`clasp login`の方が確実。
+
+#### 3. OAuth同意画面のテストユーザー設定
+「外部」アプリの場合、自分のメールアドレスをテストユーザーに追加するか、アプリを公開する必要がある。
+
+#### 4. deploy.shの互換性
+claspのバージョンアップにより、コマンド名が変更されている：
+- `create-version` → `version`
+- `update-deployment` → `deploy -i`
+
+#### 5. .clasp.jsonの設定
+- `rootDir: ""`は動作しない。`"."`を指定する
+- `projectId`を追加すると、プロジェクト識別がスムーズ
+
+### 次回同じ状況になった場合の手順書
+
+新しいマシンでclasp環境をセットアップする場合：
+
+```bash
+# 1. Node.js/clasp確認
+node --version
+clasp --version
+
+# 2. リポジトリクローン
+git clone https://github.com/toshi776/yukyu-kanri.git
+cd yukyu-kanri
+
+# 3. 認証（GCP設定が既にある場合）
+clasp login
+
+# 4. 動作確認
+clasp push --force
+
+# 5. デプロイ
+./deploy.sh
+```
+
+**初回セットアップの場合:**
+上記「解決手順」のステップ2〜6を実施してから、手順3以降を実行。
+
+### 成果物
+- ✅ 新環境でのclasp認証完了
+- ✅ GASへのプッシュ成功
+- ✅ 自動デプロイスクリプト修正・動作確認
+- ✅ バージョン8のデプロイ成功
+- ✅ この詳細ドキュメント
+
+---
+
+## 2025-11-05: 初回認証試行（未完了）
+
+### 作業概要
 - Phase 1（個人URLアクセス制御）のコード確認
 - `clasp` 認証を独自 OAuth クライアントで再設定
 - 複数回のログイン試行を実施するも CLI 側の制約で未完了
 - 報告書 `implementation-report.md` の Markdown 化
 - 認証試行内容をドキュメント化
 
-## 認証トラブル概要
+### 認証トラブル概要
 - Google Cloud Console で新規 OAuth クライアント ID/Secret を作成（値は非公開）
 - `appsscript.json` に必要スコープを追記
 - `clasp login --creds` を複数回実行するも、トークン再読込で未ログイン状態
 - `CLASP_SKIP_ENABLE_APIS` など環境変数を試すも改善せず
 - 現状はブラウザの Apps Script エディタからの操作が必要
 
-## 次回以降の検討
-- 自宅 PC の `.clasprc.json` を安全に移行し CLI 作業を再開できるか検討
-- ブラウザ上で `testUrlManagement` 等を実行して Phase 1 検証を進める
-- CLI に依存しないデプロイ手段（GitHub Actions など）を検討
+### 結果
+→ 翌日（11/6）に完全解決
