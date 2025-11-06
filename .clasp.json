@@ -1,6 +1,7 @@
 {
   "scriptId": "1JBx6pQKBVB68Ud2pbQf6n2YmLYHeSWuM_2vV2hD9zfGdI6BC1MQJOY-6",
-  "rootDir": "",
+  "projectId": "polynomial-net-477401-k0",
+  "rootDir": ".",
   "scriptExtensions": [
     ".js",
     ".gs"
