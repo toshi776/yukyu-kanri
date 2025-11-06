@@ -23,11 +23,11 @@ clasp push --force
 
 # 新しいバージョンを作成
 echo "🔄 新しいバージョンを作成中..."
-VERSION=$(clasp create-version "Auto deploy $(date '+%Y-%m-%d %H:%M:%S')")
+VERSION=$(clasp version "Auto deploy $(date '+%Y-%m-%d %H:%M:%S')")
 echo "✅ バージョン作成完了: $VERSION"
 
 # バージョン番号を抽出
-VERSION_NUM=$(echo "$VERSION" | grep -o '[0-9]*$')
+VERSION_NUM=$(echo "$VERSION" | grep -oE '[0-9]+' | tail -1)
 
 if [ -z "$VERSION_NUM" ]; then
     echo "❌ バージョン番号を取得できませんでした"
@@ -38,7 +38,7 @@ echo "📋 バージョン番号: $VERSION_NUM"
 
 # 既存のWebアプリデプロイメントを更新
 echo "🔄 Webアプリデプロイメントを更新中..."
-clasp update-deployment "$DEPLOYMENT_ID" --versionNumber "$VERSION_NUM" --description "Auto deploy $(date '+%Y-%m-%d %H:%M:%S')"
+clasp deploy -i "$DEPLOYMENT_ID" -V "$VERSION_NUM" -d "Auto deploy $(date '+%Y-%m-%d %H:%M:%S')"
 
 if [ $? -eq 0 ]; then
     echo "✅ デプロイ完了！"
