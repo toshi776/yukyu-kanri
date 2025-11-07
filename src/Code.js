@@ -34,7 +34,7 @@ function doGet(e) {
  */
 function renderAdminPage() {
   try {
-    var template = HtmlService.createTemplateFromFile('admin');
+    var template = HtmlService.createTemplateFromFile('src/admin');
     return template.evaluate()
       .setTitle('有給管理システム - 管理画面')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1');
@@ -89,7 +89,7 @@ function handleLegacyUserAccess(userId) {
     }
     
     // 警告付きで申請フォームを表示
-    var html = HtmlService.createHtmlOutputFromFile('form')
+    var html = HtmlService.createHtmlOutputFromFile('src/form')
       .setTitle('有給申請フォーム（従来方式）')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1');
     
@@ -132,9 +132,9 @@ function renderPersonalPage(userId, userInfo) {
   try {
     // 申請履歴を取得
     var applications = getUserApplications(userId);
-    
+
     // 個人ページテンプレートを作成
-    var template = HtmlService.createTemplateFromFile('personal');
+    var template = HtmlService.createTemplateFromFile('src/personal');
     
     // テンプレートに変数を設定
     template.userId = userId;
@@ -266,7 +266,32 @@ function include(filename) {
 function doPost(e) {
   try {
     appendApplication(e.parameter);
-    return HtmlService.createTemplateFromFile('success').evaluate();
+    var successHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>申請完了</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; text-align: center; }
+          .success { background: #d4edda; border: 1px solid #c3e6cb; padding: 20px; border-radius: 8px; color: #155724; max-width: 500px; margin: 50px auto; }
+          .icon { font-size: 48px; margin-bottom: 20px; }
+          h1 { color: #155724; }
+          .button { display: inline-block; margin-top: 20px; padding: 10px 20px; background: #28a745; color: white; text-decoration: none; border-radius: 5px; }
+        </style>
+      </head>
+      <body>
+        <div class="success">
+          <div class="icon">✅</div>
+          <h1>申請完了</h1>
+          <p>有給休暇の申請が正常に送信されました。</p>
+          <p>承認結果をお待ちください。</p>
+          <a href="javascript:window.close();" class="button">閉じる</a>
+        </div>
+      </body>
+      </html>`;
+    return HtmlService.createHtmlOutput(successHtml);
   } catch (error) {
     console.error('doPost エラー:', error);
     return HtmlService.createHtmlOutput('<h1>送信エラー</h1><p>' + error.toString() + '</p>');
