@@ -635,8 +635,11 @@
         return;
       }
 
+      // 却下された過去の申請を除外
+      var filteredApplications = filterPastRejectedApplications(applications || []);
+
       // 全データを保存
-      allApplications = applications || [];
+      allApplications = filteredApplications;
       displayedCount = 0;
 
       // 申請済み日付マップを再構築
@@ -780,6 +783,26 @@
       }
 
       return dateStr;
+    }
+
+    // 却下された過去の申請を除外するフィルタ
+    function filterPastRejectedApplications(applications) {
+      var today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      return applications.filter(function(app) {
+        // 却下以外のステータスは全て表示
+        if (app.status !== 'Rejected') {
+          return true;
+        }
+
+        // 却下された申請の場合、申請日をチェック
+        var applyDate = new Date(app.applyDate);
+        applyDate.setHours(0, 0, 0, 0);
+
+        // 申請日が今日以降なら表示、過去なら非表示
+        return applyDate >= today;
+      });
     }
   </script>
 </body>
