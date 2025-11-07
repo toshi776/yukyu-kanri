@@ -786,7 +786,34 @@ function submitRequest(params) {
     if (!holidayCheck.isValid && !holidayCheck.allowOverride) {
       throw new Error(holidayCheck.message);
     }
-    
+
+    // 重複日付チェック（サーバーサイド）
+    var applySheetData = applySheet.getDataRange().getValues();
+    var requestDate = params.applyDate;
+
+    for (var i = 1; i < applySheetData.length; i++) {
+      var row = applySheetData[i];
+      // 同じユーザーで、同じ申請日で、ステータスがPendingまたはApprovedの申請があるかチェック
+      if (String(row[0]) === String(params.userId)) {
+        var existingDate = row[3];
+        var existingStatus = String(row[5] || 'Pending');
+
+        // 日付を文字列化して比較
+        var existingDateStr = '';
+        if (existingDate instanceof Date) {
+          existingDateStr = Utilities.formatDate(existingDate, 'JST', 'yyyy-MM-dd');
+        } else if (typeof existingDate === 'string') {
+          existingDateStr = existingDate;
+        }
+
+        var requestDateStr = requestDate;
+
+        if (existingDateStr === requestDateStr && (existingStatus === 'Pending' || existingStatus === 'Approved')) {
+          throw new Error('この日付（' + requestDateStr + '）はすでに申請済みです');
+        }
+      }
+    }
+
     // 新しい残日数を計算
     var newRemaining = currentRemaining - applyDays;
     

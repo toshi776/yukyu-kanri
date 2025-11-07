@@ -415,7 +415,21 @@
     var userId = '<?= userId ?>';
     var userName = '<?= userName ?>';
     var remainingDays = <?= remainingDays ?>;
-    
+
+    // 申請済み日付のリスト（重複チェック用）
+    var appliedDates = [];
+
+    // 初期データから申請済み日付を抽出
+    <? if (applications && applications.length > 0) { ?>
+      appliedDates = [
+        <? for (var i = 0; i < applications.length; i++) { ?>
+          <? if (applications[i].status === 'Pending' || applications[i].status === 'Approved') { ?>
+            '<?= applications[i].applyDate ?>',
+          <? } ?>
+        <? } ?>
+      ];
+    <? } ?>
+
     // 今日の日付を取得してフォームの最小日付に設定
     document.addEventListener('DOMContentLoaded', function() {
       var today = new Date();
@@ -443,7 +457,18 @@
         showAlert('申請日を選択してください', 'error');
         return;
       }
-      
+
+      // 重複日付チェック
+      var formattedApplyDate = formatDateForComparison(applyDate);
+      var isDuplicate = appliedDates.some(function(date) {
+        return formatDateForComparison(date) === formattedApplyDate;
+      });
+
+      if (isDuplicate) {
+        showAlert('この日付はすでに申請済みです（' + applyDate + '）', 'error');
+        return;
+      }
+
       // 残日数チェック
       if (remainingDays < applyDays) {
         showAlert('有給残日数が不足しています（残り' + remainingDays + '日）', 'error');
@@ -467,6 +492,9 @@
 
           if (result.success) {
             console.log('✅ 申請成功 - 新しい残日数:', result.newRemaining);
+
+            // 申請済み日付リストに追加
+            appliedDates.push(applyDate);
 
             // 残日数を更新
             remainingDays = result.newRemaining;
@@ -592,6 +620,16 @@
         return;
       }
 
+      // 申請済み日付リストを更新
+      appliedDates = [];
+      if (applications && applications.length > 0) {
+        applications.forEach(function(app) {
+          if (app.status === 'Pending' || app.status === 'Approved') {
+            appliedDates.push(app.applyDate);
+          }
+        });
+      }
+
       var newContent = '';
 
       if (applications && applications.length > 0) {
@@ -632,6 +670,23 @@
 
       container.innerHTML = newContent;
       console.log('✅ 申請履歴テーブル更新完了');
+    }
+
+    // 日付を比較用フォーマットに変換（yyyy/MM/dd → yyyy-MM-dd）
+    function formatDateForComparison(dateStr) {
+      if (!dateStr) return '';
+
+      // すでに yyyy-MM-dd 形式の場合
+      if (dateStr.indexOf('-') !== -1) {
+        return dateStr;
+      }
+
+      // yyyy/MM/dd 形式の場合
+      if (dateStr.indexOf('/') !== -1) {
+        return dateStr.replace(/\//g, '-');
+      }
+
+      return dateStr;
     }
   </script>
 </body>
