@@ -381,48 +381,10 @@
         <h2>📋 申請履歴</h2>
 
         <div id="applicationHistoryContainer">
-        <? if (applications && applications.length > 0) { ?>
-          <table class="applications-table">
-            <thead>
-              <tr>
-                <th>申請日</th>
-                <th>日数</th>
-                <th>申請日時</th>
-                <th>ステータス</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <? for (var i = 0; i < applications.length; i++) { ?>
-                <tr>
-                  <td><?= applications[i].applyDate ?></td>
-                  <td><?= applications[i].applyDays === 0.5 ? '0.5日' : '1日' ?></td>
-                  <td><?= applications[i].timestamp ?></td>
-                  <td>
-                    <span class="status <?= applications[i].status.toLowerCase() ?>">
-                      <?= applications[i].status === 'Pending' ? '承認待ち' : 
-                          applications[i].status === 'Approved' ? '承認済み' : 
-                          applications[i].status === 'Rejected' ? '却下' : applications[i].status ?>
-                    </span>
-                  </td>
-                  <td>
-                    <? if (applications[i].canCancel && applications[i].status === 'Pending') { ?>
-                      <button class="cancel-btn" onclick="cancelApplication(<?= applications[i].rowNumber ?>, '<?= applications[i].applyDate ?>')">
-                        取消
-                      </button>
-                    <? } else { ?>
-                      <span style="color: #999;">-</span>
-                    <? } ?>
-                  </td>
-                </tr>
-              <? } ?>
-            </tbody>
-          </table>
-        <? } else { ?>
-          <div class="no-applications">
-            まだ申請履歴がありません
+          <!-- JavaScriptで動的に生成されます -->
+          <div style="text-align: center; padding: 40px; color: #999;">
+            読み込み中...
           </div>
-        <? } ?>
         </div>
       </div>
     </div>
@@ -450,18 +412,23 @@
     var displayedCount = 0;
     var itemsPerPage = 10;
 
-    // 初期データから申請済み日付と日数を抽出
+    // 初期データをJavaScript配列に変換
     <? if (applications && applications.length > 0) { ?>
-      <? for (var i = 0; i < applications.length; i++) { ?>
-        <? if (applications[i].status === 'Pending' || applications[i].status === 'Approved') { ?>
-          var date = '<?= applications[i].applyDate ?>';
-          var days = <?= applications[i].applyDays ?>;
-          if (!appliedDatesMap[date]) {
-            appliedDatesMap[date] = 0;
-          }
-          appliedDatesMap[date] += days;
+      allApplications = [
+        <? for (var i = 0; i < applications.length; i++) { ?>
+          {
+            rowNumber: <?= applications[i].rowNumber ?>,
+            userId: '<?= applications[i].userId ?>',
+            userName: '<?= applications[i].userName ?>',
+            remaining: <?= applications[i].remaining ?>,
+            applyDate: '<?= applications[i].applyDate ?>',
+            timestamp: '<?= applications[i].timestamp ?>',
+            status: '<?= applications[i].status ?>',
+            canCancel: <?= applications[i].canCancel ? 'true' : 'false' ?>,
+            applyDays: <?= applications[i].applyDays ?>
+          }<? if (i < applications.length - 1) { ?>,<? } ?>
         <? } ?>
-      <? } ?>
+      ];
     <? } ?>
 
     // 今日の日付を取得してフォームの最小日付に設定
@@ -469,14 +436,19 @@
       var today = new Date();
       var tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
-      
+
       var dateInput = document.getElementById('applyDate');
       dateInput.min = tomorrow.toISOString().split('T')[0];
-      
+
       // 3ヶ月後までに制限
       var maxDate = new Date(today);
       maxDate.setMonth(maxDate.getMonth() + 3);
       dateInput.max = maxDate.toISOString().split('T')[0];
+
+      // 初期表示時に申請履歴を10件だけ表示
+      if (allApplications.length > 0) {
+        updateApplicationTable(allApplications);
+      }
     });
     
     // フォーム送信処理
