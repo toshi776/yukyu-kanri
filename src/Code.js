@@ -388,3 +388,83 @@ function cleanupOldData() {
   console.log('削除完了:', deletedCount + '行の古いデータを削除しました');
   return '削除完了: ' + deletedCount + '行の古いデータを削除しました';
 }
+
+/**
+ * 有給申請を送信（個人ページから呼び出される）
+ */
+function submitRequest(params) {
+  try {
+    console.log('submitRequest called with params:', params);
+
+    // 利用者情報を取得
+    var userInfo = getMasterRecord(params.userId);
+    if (!userInfo) {
+      return {
+        success: false,
+        message: '利用者情報が見つかりません'
+      };
+    }
+
+    // 残日数チェック
+    var applyDays = parseFloat(params.applyDays) || 1;
+    if (userInfo.remaining < applyDays) {
+      return {
+        success: false,
+        message: '有給残日数が不足しています（残り' + userInfo.remaining + '日）'
+      };
+    }
+
+    // 申請データを追加
+    var ss = getSpreadsheet();
+    var appSheet = ss.getSheetByName('申請');
+
+    if (!appSheet) {
+      return {
+        success: false,
+        message: '申請シートが見つかりません'
+      };
+    }
+
+    // 新しい残日数を計算
+    var newRemaining = userInfo.remaining - applyDays;
+
+    // 申請シートに追加
+    appSheet.appendRow([
+      params.userId,
+      userInfo.name,
+      newRemaining,
+      params.applyDate,
+      new Date(),
+      'Pending',
+      '',
+      applyDays
+    ]);
+
+    // マスターシートの残日数を更新
+    var masterSheet = ss.getSheetByName('マスター');
+    if (masterSheet) {
+      var finder = masterSheet.createTextFinder(params.userId).matchEntireCell(true);
+      var foundCell = finder.findNext();
+      if (foundCell) {
+        var rowIndex = foundCell.getRow();
+        var remCell = masterSheet.getRange(rowIndex, 3);
+        remCell.setValue(newRemaining);
+      }
+    }
+
+    console.log('申請成功:', params.userId, params.applyDate, applyDays + '日');
+
+    return {
+      success: true,
+      message: '申請が完了しました',
+      newRemaining: newRemaining
+    };
+
+  } catch (error) {
+    console.error('submitRequest error:', error);
+    return {
+      success: false,
+      message: 'エラーが発生しました: ' + error.message
+    };
+  }
+}
