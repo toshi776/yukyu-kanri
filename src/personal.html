@@ -465,10 +465,20 @@
 
           if (result.success) {
             console.log('✅ 申請成功 - 新しい残日数:', result.newRemaining);
-            console.log('🔄 すぐにページをリロードします...');
 
-            // 申請成功したら即座にリロード（アラートなどをスキップ）
-            window.location.href = window.location.href;
+            // 残日数を更新
+            remainingDays = result.newRemaining;
+            updateRemainingDaysDisplay(result.newRemaining);
+
+            // フォームをリセット
+            document.getElementById('applyDate').value = '';
+            document.getElementById('applyDays').value = '1';
+
+            // 成功メッセージを表示
+            showAlert('✅ 有給申請を送信しました！（残り' + result.newRemaining + '日）', 'success');
+
+            // 申請履歴を再読み込み
+            reloadApplicationHistory();
           } else {
             console.error('❌ 申請失敗:', result.message);
             showAlert('申請送信に失敗しました: ' + result.message, 'error');
@@ -496,22 +506,21 @@
       if (!confirm('申請日: ' + applyDate + '\nこの申請を取り消しますか？')) {
         return;
       }
-      
+
       showAlert('取消処理中...', 'warning');
-      
+
       google.script.run
         .withSuccessHandler(function(result) {
           if (result.success) {
-            showAlert(result.message, 'success');
-            
             // 残日数を更新
             remainingDays = result.newRemaining;
             updateRemainingDaysDisplay(result.newRemaining);
-            
-            // ページを再読み込み
-            setTimeout(function() {
-              location.reload();
-            }, 2000);
+
+            // 成功メッセージを表示
+            showAlert('✅ ' + result.message, 'success');
+
+            // 申請履歴を再読み込み
+            reloadApplicationHistory();
           } else {
             showAlert('取消に失敗しました: ' + result.message, 'error');
           }
@@ -554,6 +563,73 @@
       if (remainingDaysElement) {
         remainingDaysElement.innerHTML = newRemaining + '<small>日</small>';
       }
+    }
+
+    // 申請履歴を再読み込み
+    function reloadApplicationHistory() {
+      console.log('📋 申請履歴を再読み込み中...');
+
+      google.script.run
+        .withSuccessHandler(function(applications) {
+          console.log('✅ 申請履歴取得完了:', applications);
+          updateApplicationTable(applications);
+        })
+        .withFailureHandler(function(error) {
+          console.error('❌ 申請履歴取得エラー:', error);
+          showAlert('申請履歴の取得に失敗しました', 'warning');
+        })
+        .getUserApplications(userId);
+    }
+
+    // 申請履歴テーブルを更新
+    function updateApplicationTable(applications) {
+      var tableSection = document.querySelector('.section:nth-child(2)');
+
+      if (!tableSection) {
+        console.error('申請履歴セクションが見つかりません');
+        return;
+      }
+
+      var newContent = '<h2>📋 申請履歴</h2>';
+
+      if (applications && applications.length > 0) {
+        newContent += '<table class="applications-table">';
+        newContent += '<thead><tr>';
+        newContent += '<th>申請日</th><th>日数</th><th>申請日時</th><th>ステータス</th><th>操作</th>';
+        newContent += '</tr></thead><tbody>';
+
+        applications.forEach(function(app) {
+          newContent += '<tr>';
+          newContent += '<td>' + app.applyDate + '</td>';
+          newContent += '<td>' + (app.applyDays === 0.5 ? '0.5日' : '1日') + '</td>';
+          newContent += '<td>' + app.timestamp + '</td>';
+          newContent += '<td>';
+
+          var statusClass = app.status.toLowerCase();
+          var statusText = app.status === 'Pending' ? '承認待ち' :
+                          app.status === 'Approved' ? '承認済み' :
+                          app.status === 'Rejected' ? '却下' : app.status;
+
+          newContent += '<span class="status ' + statusClass + '">' + statusText + '</span>';
+          newContent += '</td>';
+          newContent += '<td>';
+
+          if (app.canCancel && app.status === 'Pending') {
+            newContent += '<button class="cancel-btn" onclick="cancelApplication(' + app.rowNumber + ', \'' + app.applyDate + '\')">取消</button>';
+          } else {
+            newContent += '<span style="color: #999;">-</span>';
+          }
+
+          newContent += '</td></tr>';
+        });
+
+        newContent += '</tbody></table>';
+      } else {
+        newContent += '<div class="no-applications">まだ申請履歴がありません</div>';
+      }
+
+      tableSection.innerHTML = newContent;
+      console.log('✅ 申請履歴テーブル更新完了');
     }
   </script>
 </body>
