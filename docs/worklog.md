@@ -224,3 +224,106 @@ clasp push --force
 
 ### 結果
 → 翌日（11/6）に完全解決
+
+---
+
+## 2025-11-07: 有給申請機能のテスト・バグ修正
+
+### 背景
+プロジェクトから長期間離れていたため、システムの実装内容と使い方を忘れていた。有給管理システムの動作確認を行い、複数の不具合を発見・修正。
+
+### 発見した問題と修正内容
+
+#### 1. 管理画面の申請管理タブが表示されない問題（解決✅）
+
+**問題:**
+- 管理画面で「申請承認」タブをクリックしても申請データが表示されない
+- コンソールに`getApplications呼び出し`のログが出ない
+
+**原因:**
+- `admin.html`に`showTab()`関数が2箇所で定義されていた（360行目と1000行目）
+- 後の方（1000行目）が優先され、`loadApplications()`の呼び出しが実行されなかった
+
+**修正内容:**
+- 360行目の古い`showTab()`関数を削除
+- 1000行目（修正後976行目）の`showTab()`関数に`loadApplications()`の呼び出しを追加
+
+**デプロイ:**
+- Version 18/19をデプロイ
+
+**結果:**
+✅ 管理画面の申請管理タブが正常に動作するようになった
+
+#### 2. 個人ページのリロード問題（未解決❌）
+
+**問題:**
+- 個人ページで有給申請を送信後、ページが白い画面で止まる
+- データはサーバー側に正常に保存されている
+- ページリロードが正常に完了しない
+
+**試行した修正:**
+
+**試行1 (v16-17): `.always()`メソッドの削除**
+- 問題: `google.script.run`APIには`.always()`メソッドが存在しない
+- 修正: ボタンのリセット処理を`withSuccessHandler`と`withFailureHandler`の両方に移動
+- 結果: 問題解決せず
+
+**試行2 (v20): `location.reload()`の変更**
+- 問題: `location.reload()`の動作が不安定
+- 修正: `window.location.href = window.location.href`に変更
+- 結果: 問題解決せず
+
+**試行3 (v21): デバッグログの追加**
+- 目的: 処理フローを追跡
+- 結果: ログは正常に表示されるが、リロード後に白い画面になる
+```
+📤 申請送信開始...
+✅ サーバーからのレスポンス: {success: true, newRemaining: 4}
+✅ 申請成功 - 新しい残日数: 4
+🔄 2秒後にページをリロードします...
+```
+
+**試行4 (v22): 即座のリロード**
+- 問題: `setTimeout`や`showAlert`が原因の可能性
+- 修正: すべての中間処理をスキップし、即座に`window.location.href = window.location.href`を実行
+- 結果: 問題解決せず。ログは「🔄 すぐにページをリロードします...」まで到達するが、その後白い画面になる
+
+**現在の状態:**
+- サーバー側の処理は正常（申請データは保存される）
+- JavaScriptのリロード処理は実行される（ログから確認）
+- リロード後のページレンダリングで問題が発生している可能性
+- 根本原因は未特定
+
+### デプロイ履歴
+
+| Version | 説明 | 修正内容 |
+|---------|------|----------|
+| 16-17 | Fix personal page reload by removing .always() method | `.always()`削除 |
+| 18-19 | Fix duplicate showTab function - add loadApplications() call | showTab重複修正 |
+| 20 | Fix personal page reload using window.location.href | location.href変更 |
+| 21 | Add debug logs to track submitRequest flow | デバッグログ追加 |
+| 22 | Immediate page reload on success without alerts | 即座リロード |
+
+### 使用しているデプロイメントID
+- 主要: `AKfycbyJNqVvi4wYJwjXEc5Y9QF7qV-08M9uk4396sAo7Lu0i0lsY2RlCtbAPVMWaeYiKeKn` (v22)
+- 副次: `AKfycbxWVjrZ1NfAiAXv0NnO8atjpHLmgKcFqGoBgn8OnfvfWCs3mmN_lwrb_we0w7A10P1R` (v19)
+
+### 次回の対応方針
+
+**個人ページリロード問題の調査項目:**
+1. リロード後のページでJavaScriptエラーが発生していないか
+2. リロード時のNetworkタブでHTTPエラーが発生していないか
+3. `renderPersonalPage()`関数でエラーが発生していないか
+4. 代替案: リロードではなく、DOMを直接更新する方法を検討
+
+**確認すべきログ:**
+- 白い画面になった後のConsoleエラー
+- NetworkタブのHTTPステータス
+- GASの実行ログ（リロード時のrenderPersonalPage呼び出し）
+
+### 成果物
+- ✅ 管理画面の申請管理タブ修正完了
+- ❌ 個人ページのリロード問題は未解決（次回継続）
+- 📝 詳細な調査ログを記録
+
+---

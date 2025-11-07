@@ -357,30 +357,6 @@
     var allApplications = [];
     
     // タブ切り替え機能
-    function showTab(tabName) {
-      // すべてのタブボタンとコンテンツを非アクティブにする
-      var tabButtons = document.querySelectorAll('.tab-button');
-      var tabContents = document.querySelectorAll('.tab-content');
-      
-      tabButtons.forEach(function(button) {
-        button.classList.remove('active');
-      });
-      
-      tabContents.forEach(function(content) {
-        content.classList.remove('active');
-      });
-      
-      // 選択されたタブをアクティブにする
-      if (tabName === 'employees') {
-        document.querySelector('button[onclick="showTab(\'employees\')"]').classList.add('active');
-        document.getElementById('employeesTab').classList.add('active');
-      } else if (tabName === 'applications') {
-        document.querySelector('button[onclick="showTab(\'applications\')"]').classList.add('active');
-        document.getElementById('applicationsTab').classList.add('active');
-        loadApplications(); // 申請データを読み込む
-      }
-    }
-    
     // 初期化関数
     function onLoad() {
       console.log('🔧 管理画面 - 初期化開始');
@@ -1001,22 +977,28 @@
       // 既存のタブ切り替え処理
       var tabs = document.querySelectorAll('.tab-content');
       var buttons = document.querySelectorAll('.tab-button');
-      
+
       tabs.forEach(function(tab) {
         tab.classList.remove('active');
       });
-      
+
       buttons.forEach(function(button) {
         button.classList.remove('active');
       });
-      
+
       var targetTab = document.getElementById(tabName + 'Tab');
       if (targetTab) {
         targetTab.classList.add('active');
       }
-      
+
       event.target.classList.add('active');
-      
+
+      // 申請管理タブが選択された場合
+      if (tabName === 'applications') {
+        console.log('📋 申請管理タブが選択されました');
+        loadApplications(); // 申請データを読み込む
+      }
+
       // URL管理タブが選択された場合の初期化
       if (tabName === 'url-management') {
         console.log('URL管理タブが選択されました');

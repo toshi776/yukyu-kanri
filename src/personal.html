@@ -453,27 +453,34 @@
       submitBtn.textContent = '送信中...';
       
       // Google Apps Scriptの関数を呼び出し
+      console.log('📤 申請送信開始...', {userId: userId, applyDate: applyDate, applyDays: applyDays});
+
       google.script.run
         .withSuccessHandler(function(result) {
+          console.log('✅ サーバーからのレスポンス:', result);
+
+          // ボタンを元に戻す
+          submitBtn.disabled = false;
+          submitBtn.textContent = '有給申請を送信';
+
           if (result.success) {
-            showAlert('申請を送信しました。有給残日数: ' + result.newRemaining + '日', 'success');
-            
-            // 残日数を更新
-            remainingDays = result.newRemaining;
-            updateRemainingDaysDisplay(result.newRemaining);
-            
-            // フォームをリセット
-            document.getElementById('leaveForm').reset();
-            
-            // ページを再読み込みして申請履歴を更新
-            setTimeout(function() {
-              location.reload();
-            }, 2000);
+            console.log('✅ 申請成功 - 新しい残日数:', result.newRemaining);
+            console.log('🔄 すぐにページをリロードします...');
+
+            // 申請成功したら即座にリロード（アラートなどをスキップ）
+            window.location.href = window.location.href;
           } else {
+            console.error('❌ 申請失敗:', result.message);
             showAlert('申請送信に失敗しました: ' + result.message, 'error');
           }
         })
         .withFailureHandler(function(error) {
+          console.error('❌ システムエラー:', error);
+
+          // ボタンを元に戻す
+          submitBtn.disabled = false;
+          submitBtn.textContent = '有給申請を送信';
+
           showAlert('システムエラーが発生しました: ' + error.message, 'error');
         })
         .withUserObject(this)
@@ -481,11 +488,6 @@
           userId: userId,
           applyDate: applyDate,
           applyDays: applyDays
-        })
-        .always(function() {
-          // ボタンを元に戻す
-          submitBtn.disabled = false;
-          submitBtn.textContent = '有給申請を送信';
         });
     });
     
