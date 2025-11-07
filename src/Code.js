@@ -130,26 +130,37 @@ function handleLegacyUserAccess(userId) {
  */
 function renderPersonalPage(userId, userInfo) {
   try {
+    console.log('renderPersonalPage開始:', userId, userInfo);
+
     // 申請履歴を取得
     var applications = getUserApplications(userId);
+    console.log('申請履歴取得完了:', applications);
 
     // 個人ページテンプレートを作成
+    console.log('テンプレートファイル読み込み開始: src/personal');
     var template = HtmlService.createTemplateFromFile('src/personal');
-    
+    console.log('テンプレートファイル読み込み完了');
+
     // テンプレートに変数を設定
     template.userId = userId;
     template.userName = userInfo.name;
     template.remainingDays = userInfo.remaining;
-    template.applications = applications;
+    template.applications = applications || [];
     template.currentDate = Utilities.formatDate(new Date(), 'JST', 'yyyy年M月d日');
-    
-    return template.evaluate()
+    console.log('テンプレート変数設定完了');
+
+    console.log('テンプレート評価開始');
+    var evaluated = template.evaluate();
+    console.log('テンプレート評価完了');
+
+    return evaluated
       .setTitle('有給管理システム - ' + userInfo.name + 'さんの専用ページ')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1');
-    
+
   } catch (error) {
     console.error('個人ページ表示エラー:', error);
-    return renderErrorPage('個人ページの表示に失敗しました');
+    console.error('エラースタック:', error.stack);
+    return renderErrorPage('個人ページの表示に失敗しました: ' + error.message);
   }
 }
 
