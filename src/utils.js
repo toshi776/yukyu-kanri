@@ -1315,8 +1315,18 @@ function generateAllUserUrls() {
  * @return {string} WebアプリのURL
  */
 function getWebAppUrl() {
-  // 開発環境では仮のURLを返す（実際はデプロイ後に正しいURLに更新）
-  return 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+  try {
+    // ScriptApp.getService().getUrl() で動的に取得を試みる
+    var url = ScriptApp.getService().getUrl();
+    if (url && url.indexOf('YOUR_SCRIPT_ID') === -1) {
+      return url;
+    }
+  } catch (e) {
+    console.log('ScriptApp.getService().getUrl()でエラー:', e);
+  }
+
+  // フォールバック: 最新のデプロイメントID（バージョン13）
+  return 'https://script.google.com/macros/s/AKfycbxWVjrZ1NfAiAXv0NnO8atjpHLmgKcFqGoBgn8OnfvfWCs3mmN_lwrb_we0w7A10P1R/exec';
 }
 
 /**
