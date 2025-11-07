@@ -56,22 +56,49 @@
 
 ## ディレクトリ構造
 ```
-yukyu-kanri-new/
-├── エクセルデータ/
-│   ├── EBISU/ (45名)
-│   ├── シエル/ (51名 + 退職者6名)
-│   ├── パロン/ (48名 + 退職者9名)
-│   └── ライズ/ (9名)
-├── migrate_data.py
-├── 有給管理_移行データ.csv
-└── CLAUDE.md (このファイル)
+yukyu-kanri/
+├── src/                          # Google Apps Script ソースコード
+│   ├── Code.js                   # メインコード
+│   ├── leave-grant.js            # 有給付与機能
+│   ├── notification.js           # 通知機能
+│   ├── statistics-report.js      # 統計レポート
+│   ├── trigger-manager.js        # トリガー管理
+│   ├── utils.js                  # ユーティリティ
+│   ├── admin.html                # 管理画面
+│   ├── form.html                 # 申請フォーム
+│   └── personal.html             # 個人画面
+├── test/                         # テストコード
+│   ├── test-annual-grant.js
+│   ├── test-notification-production.js
+│   ├── test-runner.js
+│   ├── test-statistics-report.js
+│   └── system-integration-test.js
+├── docs/                         # ドキュメント
+│   ├── implementation-report.md
+│   ├── auth-experiments.md
+│   ├── kihonsekkei.txt
+│   └── worklog.md
+├── scripts/                      # デプロイメント・移行スクリプト
+│   ├── deploy.sh
+│   └── migrate_data.py
+├── .clasp.json                   # clasp設定
+├── .gitignore
+├── AGENTS.md
+├── appsscript.json              # GAS設定
+├── CLAUDE.md                    # このファイル
+└── README.md
 ```
 
 ## 実行コマンド
 ```bash
 # データ移行実行
-python3 migrate_data.py
+python3 scripts/migrate_data.py
 
-# 結果確認
-head -20 有給管理_移行データ.csv
+# GASデプロイ
+./scripts/deploy.sh
+
+# clasp操作
+clasp push                       # コードをGASにアップロード
+clasp open                       # GASエディタを開く
+clasp deploy                     # 新しいバージョンをデプロイ
 ```
