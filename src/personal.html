@@ -354,7 +354,8 @@
       <!-- 申請履歴セクション -->
       <div class="section">
         <h2>📋 申請履歴</h2>
-        
+
+        <div id="applicationHistoryContainer">
         <? if (applications && applications.length > 0) { ?>
           <table class="applications-table">
             <thead>
@@ -397,6 +398,7 @@
             まだ申請履歴がありません
           </div>
         <? } ?>
+        </div>
       </div>
     </div>
     
@@ -583,14 +585,14 @@
 
     // 申請履歴テーブルを更新
     function updateApplicationTable(applications) {
-      var tableSection = document.querySelector('.section:nth-child(2)');
+      var container = document.getElementById('applicationHistoryContainer');
 
-      if (!tableSection) {
-        console.error('申請履歴セクションが見つかりません');
+      if (!container) {
+        console.error('申請履歴コンテナが見つかりません');
         return;
       }
 
-      var newContent = '<h2>📋 申請履歴</h2>';
+      var newContent = '';
 
       if (applications && applications.length > 0) {
         newContent += '<table class="applications-table">';
@@ -628,7 +630,7 @@
         newContent += '<div class="no-applications">まだ申請履歴がありません</div>';
       }
 
-      tableSection.innerHTML = newContent;
+      container.innerHTML = newContent;
       console.log('✅ 申請履歴テーブル更新完了');
     }
   </script>
