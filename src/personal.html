@@ -749,10 +749,15 @@
         // 追加表示の場合はtbodyに追記
         var tbody = document.getElementById('applicationsTableBody');
         if (tbody) {
-          var tempDiv = document.createElement('div');
-          tempDiv.innerHTML = newContent;
-          while (tempDiv.firstChild) {
-            tbody.appendChild(tempDiv.firstChild);
+          // テーブル行を正しく解析するために一時的なtableを作成
+          var tempTable = document.createElement('table');
+          var tempTbody = document.createElement('tbody');
+          tempTbody.innerHTML = newContent;
+          tempTable.appendChild(tempTbody);
+
+          // 生成された行をtbodyに追加
+          while (tempTbody.firstChild) {
+            tbody.appendChild(tempTbody.firstChild);
           }
         }
 
