@@ -787,16 +787,18 @@ function submitRequest(params) {
       throw new Error(holidayCheck.message);
     }
 
-    // 重複日付チェック（サーバーサイド）
+    // 重複日付チェック（サーバーサイド）- 合計日数が1日を超えないかチェック
     var applySheetData = applySheet.getDataRange().getValues();
     var requestDate = params.applyDate;
+    var totalDaysForDate = 0;
 
     for (var i = 1; i < applySheetData.length; i++) {
       var row = applySheetData[i];
-      // 同じユーザーで、同じ申請日で、ステータスがPendingまたはApprovedの申請があるかチェック
+      // 同じユーザーで、同じ申請日で、ステータスがPendingまたはApprovedの申請の日数を合計
       if (String(row[0]) === String(params.userId)) {
         var existingDate = row[3];
         var existingStatus = String(row[5] || 'Pending');
+        var existingDays = Number(row[7] || 1); // H列の申請日数
 
         // 日付を文字列化して比較
         var existingDateStr = '';
@@ -809,8 +811,19 @@ function submitRequest(params) {
         var requestDateStr = requestDate;
 
         if (existingDateStr === requestDateStr && (existingStatus === 'Pending' || existingStatus === 'Approved')) {
-          throw new Error('この日付（' + requestDateStr + '）はすでに申請済みです');
+          totalDaysForDate += existingDays;
         }
+      }
+    }
+
+    // 今回の申請と合わせて1日を超える場合はエラー
+    if (totalDaysForDate + applyDays > 1) {
+      if (totalDaysForDate >= 1) {
+        throw new Error('この日付（' + requestDate + '）はすでに1日分の申請があります');
+      } else if (applyDays === 1) {
+        throw new Error('この日付（' + requestDate + '）には既に半日申請があります。1日申請はできません');
+      } else {
+        throw new Error('この日付（' + requestDate + '）はすでに半日申請が2回あります');
       }
     }
 

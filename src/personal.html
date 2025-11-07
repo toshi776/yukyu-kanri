@@ -416,18 +416,22 @@
     var userName = '<?= userName ?>';
     var remainingDays = <?= remainingDays ?>;
 
-    // 申請済み日付のリスト（重複チェック用）
-    var appliedDates = [];
+    // 申請済み日付のマップ（重複チェック用）
+    // { '2025-11-15': 1, '2025-11-16': 0.5 } のように、日付ごとの合計申請日数を記録
+    var appliedDatesMap = {};
 
-    // 初期データから申請済み日付を抽出
+    // 初期データから申請済み日付と日数を抽出
     <? if (applications && applications.length > 0) { ?>
-      appliedDates = [
-        <? for (var i = 0; i < applications.length; i++) { ?>
-          <? if (applications[i].status === 'Pending' || applications[i].status === 'Approved') { ?>
-            '<?= applications[i].applyDate ?>',
-          <? } ?>
+      <? for (var i = 0; i < applications.length; i++) { ?>
+        <? if (applications[i].status === 'Pending' || applications[i].status === 'Approved') { ?>
+          var date = '<?= applications[i].applyDate ?>';
+          var days = <?= applications[i].applyDays ?>;
+          if (!appliedDatesMap[date]) {
+            appliedDatesMap[date] = 0;
+          }
+          appliedDatesMap[date] += days;
         <? } ?>
-      ];
+      <? } ?>
     <? } ?>
 
     // 今日の日付を取得してフォームの最小日付に設定
@@ -458,14 +462,19 @@
         return;
       }
 
-      // 重複日付チェック
+      // 重複日付チェック（合計日数が1日を超えないようにチェック）
       var formattedApplyDate = formatDateForComparison(applyDate);
-      var isDuplicate = appliedDates.some(function(date) {
-        return formatDateForComparison(date) === formattedApplyDate;
-      });
+      var existingDays = appliedDatesMap[formattedApplyDate] || 0;
+      var totalDays = existingDays + applyDays;
 
-      if (isDuplicate) {
-        showAlert('この日付はすでに申請済みです（' + applyDate + '）', 'error');
+      if (totalDays > 1) {
+        if (existingDays >= 1) {
+          showAlert('この日付はすでに1日分の申請があります（' + applyDate + '）', 'error');
+        } else if (applyDays === 1) {
+          showAlert('この日付には既に半日申請があります。1日申請はできません（' + applyDate + '）', 'error');
+        } else {
+          showAlert('この日付はすでに半日申請が2回あります（' + applyDate + '）', 'error');
+        }
         return;
       }
 
@@ -493,8 +502,12 @@
           if (result.success) {
             console.log('✅ 申請成功 - 新しい残日数:', result.newRemaining);
 
-            // 申請済み日付リストに追加
-            appliedDates.push(applyDate);
+            // 申請済み日付マップを更新
+            var formattedDate = formatDateForComparison(applyDate);
+            if (!appliedDatesMap[formattedDate]) {
+              appliedDatesMap[formattedDate] = 0;
+            }
+            appliedDatesMap[formattedDate] += applyDays;
 
             // 残日数を更新
             remainingDays = result.newRemaining;
@@ -620,12 +633,16 @@
         return;
       }
 
-      // 申請済み日付リストを更新
-      appliedDates = [];
+      // 申請済み日付マップを再構築
+      appliedDatesMap = {};
       if (applications && applications.length > 0) {
         applications.forEach(function(app) {
           if (app.status === 'Pending' || app.status === 'Approved') {
-            appliedDates.push(app.applyDate);
+            var date = formatDateForComparison(app.applyDate);
+            if (!appliedDatesMap[date]) {
+              appliedDatesMap[date] = 0;
+            }
+            appliedDatesMap[date] += app.applyDays;
           }
         });
       }
