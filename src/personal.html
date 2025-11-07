@@ -275,7 +275,32 @@
       margin-bottom: 20px;
       font-size: 1em;
     }
-    
+
+    .load-more-btn {
+      display: block;
+      width: 100%;
+      padding: 15px;
+      margin-top: 20px;
+      background: #f8f9fa;
+      color: #4CAF50;
+      border: 2px solid #4CAF50;
+      border-radius: 8px;
+      font-size: 1em;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-align: center;
+    }
+
+    .load-more-btn:hover {
+      background: #4CAF50;
+      color: white;
+    }
+
+    .load-more-btn:active {
+      transform: scale(0.98);
+    }
+
     @media (max-width: 768px) {
       body {
         padding: 10px;
@@ -419,6 +444,11 @@
     // 申請済み日付のマップ（重複チェック用）
     // { '2025-11-15': 1, '2025-11-16': 0.5 } のように、日付ごとの合計申請日数を記録
     var appliedDatesMap = {};
+
+    // 申請履歴の全データ（「もっと見る」機能用）
+    var allApplications = [];
+    var displayedCount = 0;
+    var itemsPerPage = 10;
 
     // 初期データから申請済み日付と日数を抽出
     <? if (applications && applications.length > 0) { ?>
@@ -633,10 +663,14 @@
         return;
       }
 
+      // 全データを保存
+      allApplications = applications || [];
+      displayedCount = 0;
+
       // 申請済み日付マップを再構築
       appliedDatesMap = {};
-      if (applications && applications.length > 0) {
-        applications.forEach(function(app) {
+      if (allApplications.length > 0) {
+        allApplications.forEach(function(app) {
           if (app.status === 'Pending' || app.status === 'Approved') {
             var date = formatDateForComparison(app.applyDate);
             if (!appliedDatesMap[date]) {
@@ -647,46 +681,111 @@
         });
       }
 
+      // 最初の10件を表示
+      renderApplications(true);
+    }
+
+    // 申請履歴をレンダリング（初期表示または追加表示）
+    function renderApplications(isInitial) {
+      var container = document.getElementById('applicationHistoryContainer');
       var newContent = '';
 
-      if (applications && applications.length > 0) {
-        newContent += '<table class="applications-table">';
-        newContent += '<thead><tr>';
-        newContent += '<th>申請日</th><th>日数</th><th>申請日時</th><th>ステータス</th><th>操作</th>';
-        newContent += '</tr></thead><tbody>';
-
-        applications.forEach(function(app) {
-          newContent += '<tr>';
-          newContent += '<td>' + app.applyDate + '</td>';
-          newContent += '<td>' + (app.applyDays === 0.5 ? '0.5日' : '1日') + '</td>';
-          newContent += '<td>' + app.timestamp + '</td>';
-          newContent += '<td>';
-
-          var statusClass = app.status.toLowerCase();
-          var statusText = app.status === 'Pending' ? '承認待ち' :
-                          app.status === 'Approved' ? '承認済み' :
-                          app.status === 'Rejected' ? '却下' : app.status;
-
-          newContent += '<span class="status ' + statusClass + '">' + statusText + '</span>';
-          newContent += '</td>';
-          newContent += '<td>';
-
-          if (app.canCancel && app.status === 'Pending') {
-            newContent += '<button class="cancel-btn" onclick="cancelApplication(' + app.rowNumber + ', \'' + app.applyDate + '\')">取消</button>';
-          } else {
-            newContent += '<span style="color: #999;">-</span>';
-          }
-
-          newContent += '</td></tr>';
-        });
-
-        newContent += '</tbody></table>';
-      } else {
-        newContent += '<div class="no-applications">まだ申請履歴がありません</div>';
+      if (allApplications.length === 0) {
+        container.innerHTML = '<div class="no-applications">まだ申請履歴がありません</div>';
+        return;
       }
 
-      container.innerHTML = newContent;
-      console.log('✅ 申請履歴テーブル更新完了');
+      // 表示する範囲を計算
+      var startIndex = isInitial ? 0 : displayedCount;
+      var endIndex = Math.min(startIndex + itemsPerPage, allApplications.length);
+      var appsToShow = allApplications.slice(startIndex, endIndex);
+
+      // 初期表示の場合はテーブルヘッダーを含める
+      if (isInitial) {
+        newContent += '<table class="applications-table" id="applicationsTable">';
+        newContent += '<thead><tr>';
+        newContent += '<th>申請日</th><th>日数</th><th>申請日時</th><th>ステータス</th><th>操作</th>';
+        newContent += '</tr></thead><tbody id="applicationsTableBody">';
+      }
+
+      // データ行を追加
+      appsToShow.forEach(function(app) {
+        newContent += '<tr>';
+        newContent += '<td>' + app.applyDate + '</td>';
+        newContent += '<td>' + (app.applyDays === 0.5 ? '0.5日' : '1日') + '</td>';
+        newContent += '<td>' + app.timestamp + '</td>';
+        newContent += '<td>';
+
+        var statusClass = app.status.toLowerCase();
+        var statusText = app.status === 'Pending' ? '承認待ち' :
+                        app.status === 'Approved' ? '承認済み' :
+                        app.status === 'Rejected' ? '却下' : app.status;
+
+        newContent += '<span class="status ' + statusClass + '">' + statusText + '</span>';
+        newContent += '</td>';
+        newContent += '<td>';
+
+        if (app.canCancel && app.status === 'Pending') {
+          newContent += '<button class="cancel-btn" onclick="cancelApplication(' + app.rowNumber + ', \'' + app.applyDate + '\')">取消</button>';
+        } else {
+          newContent += '<span style="color: #999;">-</span>';
+        }
+
+        newContent += '</td></tr>';
+      });
+
+      if (isInitial) {
+        newContent += '</tbody></table>';
+
+        // 「もっと見る」ボタンを追加
+        if (allApplications.length > itemsPerPage) {
+          var remaining = allApplications.length - itemsPerPage;
+          newContent += '<button class="load-more-btn" onclick="loadMoreApplications()">もっと見る（残り' + remaining + '件）</button>';
+        }
+
+        container.innerHTML = newContent;
+        displayedCount = endIndex;
+      } else {
+        // 追加表示の場合はtbodyに追記
+        var tbody = document.getElementById('applicationsTableBody');
+        if (tbody) {
+          var tempDiv = document.createElement('div');
+          tempDiv.innerHTML = newContent;
+          while (tempDiv.firstChild) {
+            tbody.appendChild(tempDiv.firstChild);
+          }
+        }
+
+        displayedCount = endIndex;
+
+        // 「もっと見る」ボタンを更新
+        updateLoadMoreButton();
+      }
+
+      console.log('✅ 申請履歴表示完了（表示件数: ' + displayedCount + '/' + allApplications.length + '）');
+    }
+
+    // 「もっと見る」ボタンをクリック
+    function loadMoreApplications() {
+      renderApplications(false);
+    }
+
+    // 「もっと見る」ボタンの表示を更新
+    function updateLoadMoreButton() {
+      var existingBtn = document.querySelector('.load-more-btn');
+
+      if (displayedCount >= allApplications.length) {
+        // 全件表示済みならボタンを削除
+        if (existingBtn) {
+          existingBtn.remove();
+        }
+      } else {
+        // まだ表示する項目がある場合はボタンを更新
+        var remaining = allApplications.length - displayedCount;
+        if (existingBtn) {
+          existingBtn.textContent = 'もっと見る（残り' + remaining + '件）';
+        }
+      }
     }
 
     // 日付を比較用フォーマットに変換（yyyy/MM/dd → yyyy-MM-dd）
