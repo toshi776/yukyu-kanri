@@ -50,6 +50,15 @@ function generateMonthlyReport(year, month) {
     var divisionStats = calculateDivisionStatistics(reportDate, nextMonth);
 
     // 年5日取得義務統計（4月～翌年3月の年度単位）
+    // 一時的に無効化してパフォーマンス改善
+    var fiveDayObligationStatsFormatted = {
+      targetCount: 0,
+      achievedCount: 0,
+      notAchievedCount: 0,
+      notAchievedUsers: []
+    };
+
+    /* パフォーマンス問題のため一時的にコメントアウト
     var fiscalYearStart = year;
     if (month < 4) {
       fiscalYearStart = year - 1;
@@ -73,6 +82,7 @@ function generateMonthlyReport(year, month) {
         };
       })
     };
+    */
 
     var reportData = {
       reportType: 'MONTHLY',
