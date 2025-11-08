@@ -102,8 +102,129 @@ notAchievedUsers: fiveDayObligationStats.details.filter(function(detail) {
 ### 次の作業
 
 Phase 4の残りの機能を実装：
-1. 付与管理機能の管理画面統合
+1. ~~付与管理機能の管理画面統合~~ ✅
 2. 失効管理機能の管理画面統合
+
+---
+
+## 2025-11-08: Phase 4実装（管理機能の拡張）- 付与管理機能 ✅
+
+### 背景
+統計レポート機能に続いて、緊急時の手動対応のための付与管理機能を実装。
+
+### 実装内容
+
+#### 1. 付与管理タブの追加 ✅
+
+**管理画面（admin.html）への追加:**
+
+1. **タブボタンの追加**
+   - 「付与管理」タブを5番目のタブとして追加
+
+2. **HTMLコンテンツの追加**
+   - 3つの管理セクション:
+     - **6ヶ月付与管理**: 入社6ヶ月経過後の自動付与処理
+     - **年次付与管理**: 毎年4月1日の一括付与処理
+     - **付与履歴**: 直近の付与履歴表示
+
+3. **各セクションの機能**
+   - 対象者確認ボタン: 付与対象者をリストアップ
+   - 手動実行ボタン: 付与処理を即座に実行
+   - 対象者リスト表示（テーブル形式）
+
+4. **JavaScript機能の実装**
+   - `checkSixMonthTargets()`: 6ヶ月付与対象者確認
+   - `displaySixMonthTargets()`: 6ヶ月対象者表示
+   - `executeSixMonthGrants()`: 6ヶ月付与実行
+   - `checkAnnualTargets()`: 年次付与対象者確認
+   - `displayAnnualTargets()`: 年次対象者表示
+   - `executeAnnualGrants()`: 年次付与実行
+   - `loadGrantHistory()`: 付与履歴読み込み
+   - `displayGrantHistory()`: 付与履歴表示
+
+**バックエンド（leave-grant.js）の修正:**
+
+5. **getRecentGrantHistory関数の追加**
+   - 最近の付与履歴を取得（デフォルト50件）
+   - マスターシートから利用者名を取得してマッピング
+   - 付与日の降順でソート
+   - 管理画面で表示しやすい形式にフォーマット
+
+6. **formatDate関数の追加**
+   - 日付をYYYY/MM/DD形式にフォーマット
+
+### 実装のポイント
+
+**1. 対象者の確認と実行の分離**
+```javascript
+// 対象者確認（読み取り専用）
+checkSixMonthTargets() → getSixMonthGrantTargets()
+
+// 手動実行（書き込み）
+executeSixMonthGrants() → processSixMonthGrants()
+```
+- 誤操作防止のため、確認と実行を分離
+- 実行時は確認ダイアログを表示
+
+**2. 実行後の自動更新**
+```javascript
+setTimeout(function() {
+  checkSixMonthTargets();
+}, 2000);
+```
+- 付与実行後、2秒待ってから対象者リストを再読み込み
+- 処理完了を確認
+
+**3. 付与履歴の効率的な取得**
+```javascript
+// マスターシートから利用者名マップを作成
+var userNameMap = {};
+for (var i = 1; i < masterData.length; i++) {
+  var userId = String(masterData[i][0]);
+  var userName = String(masterData[i][1] || '');
+  userNameMap[userId] = userName;
+}
+
+// 付与履歴に利用者名を追加
+userName: userNameMap[userId] || '-'
+```
+
+**4. カラーコーディング**
+- 6ヶ月付与: 緑 (#4CAF50)
+- 年次付与: オレンジ (#FF9800)
+- 付与履歴: 紫 (#9C27B0)
+
+### デプロイ
+
+**デプロイバージョン:** v33
+
+**変更ファイル:**
+- `src/admin.html`: 付与管理タブとJavaScript機能を追加（+283行）
+- `src/leave-grant.js`: `getRecentGrantHistory()`と`formatDate()`を追加（+85行）
+
+**デプロイ日時:** 2025-11-08 09:21:45
+
+### 成果
+
+- ✅ 付与管理タブの追加完了
+- ✅ 6ヶ月付与の確認・手動実行機能
+- ✅ 年次付与の確認・手動実行機能
+- ✅ 付与履歴の表示機能
+- ✅ v33のデプロイ成功
+
+### 使用シーン
+
+この機能は以下のような緊急時・例外時に使用：
+1. 自動付与処理が失敗した場合の再実行
+2. システムトラブル時のバックアップ対応
+3. 中途入社者への即座の付与
+4. 遡及的な付与修正
+5. 付与履歴の監査・確認
+
+### 次の作業
+
+Phase 4の最後の機能を実装：
+- 失効管理機能の管理画面統合
 
 ---
 

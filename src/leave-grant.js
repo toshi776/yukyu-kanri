@@ -682,6 +682,75 @@ function processExpiredLeaves() {
   }
 }
 
+/**
+ * 失効予定の有給を取得（管理画面用）
+ * @param {number} days - 何日以内の失効予定を取得するか
+ * @return {Array} 失効予定リスト
+ */
+function getExpiringLeaves(days) {
+  try {
+    days = days || 30;
+
+    var ss = getSpreadsheet();
+    var grantHistorySheet = getOrCreateGrantHistorySheet(ss);
+    var masterSheet = ss.getSheetByName('マスター');
+
+    var data = grantHistorySheet.getDataRange().getValues();
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    var targetDate = new Date(today);
+    targetDate.setDate(targetDate.getDate() + days);
+
+    var expiringLeaves = [];
+
+    // マスターシートから利用者名を取得するためのマップを作成
+    var userNameMap = {};
+    if (masterSheet) {
+      var masterData = masterSheet.getDataRange().getValues();
+      for (var i = 1; i < masterData.length; i++) {
+        var userId = String(masterData[i][0]);
+        var userName = String(masterData[i][1] || '');
+        if (userId) {
+          userNameMap[userId] = userName;
+        }
+      }
+    }
+
+    // 失効予定を検索
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var userId = String(row[0]);
+      var grantDate = row[1];
+      var expiryDate = new Date(row[3]);
+      expiryDate.setHours(0, 0, 0, 0);
+      var remainingDays = Number(row[4]);
+
+      // 失効日が対象期間内で、残日数がある場合
+      if (expiryDate > today && expiryDate <= targetDate && remainingDays > 0) {
+        expiringLeaves.push({
+          userId: userId,
+          userName: userNameMap[userId] || '-',
+          grantDate: formatDate(grantDate),
+          expiryDate: formatDate(expiryDate),
+          remainingDays: remainingDays
+        });
+      }
+    }
+
+    // 失効日の昇順でソート（近い順）
+    expiringLeaves.sort(function(a, b) {
+      return new Date(a.expiryDate) - new Date(b.expiryDate);
+    });
+
+    return expiringLeaves;
+
+  } catch (error) {
+    console.error('失効予定取得エラー:', error);
+    return [];
+  }
+}
+
 // =============================
 // 6ヶ月付与処理（初回付与）
 // =============================

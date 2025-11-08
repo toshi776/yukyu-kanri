@@ -275,6 +275,7 @@
     <button class="tab-button" onclick="showTab('url-management')">URL管理</button>
     <button class="tab-button" onclick="showTab('statistics')">統計レポート</button>
     <button class="tab-button" onclick="showTab('grant-management')">付与管理</button>
+    <button class="tab-button" onclick="showTab('expiry-management')">失効管理</button>
   </div>
   
   <!-- 利用者一覧タブ -->
@@ -1029,6 +1030,51 @@
     </div>
   </div>
 
+  <!-- 失効管理タブ -->
+  <div id="expiry-managementTab" class="tab-content">
+    <h2>失効管理</h2>
+
+    <!-- 失効予定確認 -->
+    <div style="margin: 20px 0; padding: 20px; background: white; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h3 style="color: #f44336; border-bottom: 2px solid #f44336; padding-bottom: 10px;">失効予定の確認</h3>
+      <p style="color: #666; margin: 15px 0;">失効予定の有給を確認します。</p>
+
+      <div class="controls">
+        <label>確認期間：</label>
+        <select id="expiryCheckPeriod" style="width: 150px;">
+          <option value="7">1週間以内</option>
+          <option value="30" selected>1ヶ月以内</option>
+          <option value="90">3ヶ月以内</option>
+          <option value="180">6ヶ月以内</option>
+        </select>
+        <button onclick="checkExpiringLeaves()" style="background: #f44336; color: white; padding: 10px 20px; border: none; border-radius: 5px; margin-left: 10px;">
+          失効予定確認
+        </button>
+      </div>
+
+      <div id="expiryCheckStatus" style="margin: 20px 0; padding: 15px; border-radius: 5px; display: none;"></div>
+
+      <div id="expiringLeavesContainer" style="display: none;">
+        <h4 style="margin: 20px 0 10px 0;">失効予定リスト</h4>
+        <div id="expiringLeavesList"></div>
+      </div>
+    </div>
+
+    <!-- 失効処理実行 -->
+    <div style="margin: 20px 0; padding: 20px; background: white; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h3 style="color: #FF5722; border-bottom: 2px solid #FF5722; padding-bottom: 10px;">失効処理の実行</h3>
+      <p style="color: #666; margin: 15px 0;">失効日を過ぎた有給を処理します。通常は毎日自動実行されますが、緊急時に手動で実行できます。</p>
+
+      <div class="controls">
+        <button onclick="executeExpiryProcess()" style="background: #FF5722; color: white; padding: 10px 20px; border: none; border-radius: 5px;">
+          失効処理実行
+        </button>
+      </div>
+
+      <div id="expiryProcessStatus" style="margin: 20px 0; padding: 15px; border-radius: 5px; display: none;"></div>
+    </div>
+  </div>
+
   <script>
     // URL管理機能のJavaScript
     
@@ -1595,6 +1641,132 @@
       });
     }
 
+    // =============================
+    // 失効管理機能のJavaScript
+    // =============================
+
+    function checkExpiringLeaves() {
+      var days = parseInt(document.getElementById('expiryCheckPeriod').value);
+
+      var statusDiv = document.getElementById('expiryCheckStatus');
+      statusDiv.style.display = 'block';
+      statusDiv.style.background = '#fff3cd';
+      statusDiv.style.border = '1px solid #ffeaa7';
+      statusDiv.style.color = '#856404';
+      statusDiv.innerHTML = '<strong>処理中...</strong> 失効予定を確認しています。';
+
+      document.getElementById('expiringLeavesContainer').style.display = 'none';
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          console.log('失効予定確認結果:', result);
+
+          if (result && result.length > 0) {
+            statusDiv.style.background = '#fff3cd';
+            statusDiv.style.border = '1px solid #ffc107';
+            statusDiv.style.color = '#856404';
+            statusDiv.innerHTML = '<strong>警告!</strong> ' + result.length + '件の失効予定があります。';
+
+            displayExpiringLeaves(result);
+          } else {
+            statusDiv.style.background = '#d4edda';
+            statusDiv.style.border = '1px solid #c3e6cb';
+            statusDiv.style.color = '#155724';
+            statusDiv.innerHTML = '<strong>良好</strong> 失効予定はありません。';
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('失効予定確認エラー:', error);
+          statusDiv.style.background = '#f8d7da';
+          statusDiv.style.border = '1px solid #f5c6cb';
+          statusDiv.style.color = '#721c24';
+          statusDiv.innerHTML = '<strong>システムエラー:</strong> ' + error.message;
+        })
+        .getExpiringLeaves(days);
+    }
+
+    function displayExpiringLeaves(leaves) {
+      var container = document.getElementById('expiringLeavesContainer');
+      container.style.display = 'block';
+
+      var html = '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+      html += '<thead><tr style="background: #f44336; color: white;">';
+      html += '<th style="padding: 10px; border: 1px solid #ddd;">利用者ID</th>';
+      html += '<th style="padding: 10px; border: 1px solid #ddd;">利用者名</th>';
+      html += '<th style="padding: 10px; border: 1px solid #ddd;">付与日</th>';
+      html += '<th style="padding: 10px; border: 1px solid #ddd;">失効日</th>';
+      html += '<th style="padding: 10px; border: 1px solid #ddd;">残日数</th>';
+      html += '<th style="padding: 10px; border: 1px solid #ddd;">残り日数</th>';
+      html += '</tr></thead><tbody>';
+
+      leaves.forEach(function(leave) {
+        var daysUntilExpiry = Math.ceil((new Date(leave.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
+        var urgencyColor = daysUntilExpiry <= 7 ? '#f44336' : (daysUntilExpiry <= 30 ? '#FF9800' : '#FFC107');
+
+        html += '<tr style="background: white;">';
+        html += '<td style="padding: 10px; border: 1px solid #ddd;">' + (leave.userId || '-') + '</td>';
+        html += '<td style="padding: 10px; border: 1px solid #ddd;">' + (leave.userName || '-') + '</td>';
+        html += '<td style="padding: 10px; border: 1px solid #ddd;">' + (leave.grantDate || '-') + '</td>';
+        html += '<td style="padding: 10px; border: 1px solid #ddd;">' + (leave.expiryDate || '-') + '</td>';
+        html += '<td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">' + (leave.remainingDays || 0) + '日</td>';
+        html += '<td style="padding: 10px; border: 1px solid #ddd; color: ' + urgencyColor + '; font-weight: bold;">' + daysUntilExpiry + '日後</td>';
+        html += '</tr>';
+      });
+
+      html += '</tbody></table>';
+      document.getElementById('expiringLeavesList').innerHTML = html;
+    }
+
+    function executeExpiryProcess() {
+      if (!confirm('失効処理を実行しますか？\n\n失効日を過ぎた有給が失効します。この操作は取り消せません。')) {
+        return;
+      }
+
+      var statusDiv = document.getElementById('expiryProcessStatus');
+      statusDiv.style.display = 'block';
+      statusDiv.style.background = '#fff3cd';
+      statusDiv.style.border = '1px solid #ffeaa7';
+      statusDiv.style.color = '#856404';
+      statusDiv.innerHTML = '<strong>処理中...</strong> 失効処理を実行しています。しばらくお待ちください。';
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          console.log('失効処理実行結果:', result);
+
+          if (result.success) {
+            if (result.expiredCount > 0) {
+              statusDiv.style.background = '#fff3cd';
+              statusDiv.style.border = '1px solid #ffc107';
+              statusDiv.style.color = '#856404';
+              statusDiv.innerHTML = '<strong>完了!</strong> ' + result.message;
+            } else {
+              statusDiv.style.background = '#d4edda';
+              statusDiv.style.border = '1px solid #c3e6cb';
+              statusDiv.style.color = '#155724';
+              statusDiv.innerHTML = '<strong>完了!</strong> 失効対象はありませんでした。';
+            }
+
+            // 失効予定を再確認
+            setTimeout(function() {
+              checkExpiringLeaves();
+            }, 2000);
+          } else {
+            statusDiv.style.background = '#f8d7da';
+            statusDiv.style.border = '1px solid #f5c6cb';
+            statusDiv.style.color = '#721c24';
+            statusDiv.innerHTML = '<strong>エラー:</strong> ' + result.message;
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('失効処理実行エラー:', error);
+          statusDiv.style.background = '#f8d7da';
+          statusDiv.style.border = '1px solid #f5c6cb';
+          statusDiv.style.color = '#721c24';
+          statusDiv.innerHTML = '<strong>システムエラー:</strong> ' + error.message;
+        })
+        .processExpiredLeaves();
+    }
+
     // タブ切り替え機能を拡張
     function showTab(tabName) {
       // 既存のタブ切り替え処理
@@ -1637,6 +1809,12 @@
       // 付与管理タブが選択された場合の初期化
       if (tabName === 'grant-management') {
         console.log('🎁 付与管理タブが選択されました');
+        // 必要に応じて初期データロード
+      }
+
+      // 失効管理タブが選択された場合の初期化
+      if (tabName === 'expiry-management') {
+        console.log('⏳ 失効管理タブが選択されました');
         // 必要に応じて初期データロード
       }
     }
