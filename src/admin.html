@@ -952,6 +952,47 @@
   <div id="system-settingsTab" class="tab-content">
     <h2>システム設定</h2>
 
+    <!-- マスターシートフォーマット設定 -->
+    <div style="margin: 20px 0; padding: 20px; background: white; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h3 style="color: #4CAF50; border-bottom: 2px solid #4CAF50; padding-bottom: 10px;">マスターシートフォーマット設定</h3>
+
+      <div style="background: #E8F5E9; padding: 15px; border-radius: 5px; margin: 15px 0;">
+        <h4 style="margin-top: 0; color: #2E7D32;">フォーマット自動設定機能</h4>
+        <p style="margin: 10px 0; line-height: 1.6;">
+          マスターシートの列構成とフォーマットを自動的に整えます。<br>
+          <strong>設定される内容：</strong>
+        </p>
+        <ul style="margin: 10px 0 10px 20px; line-height: 1.8;">
+          <li>8列のヘッダー設定（利用者番号〜最新年次付与日）</li>
+          <li>列幅の自動調整</li>
+          <li>日付・数値フォーマットの設定</li>
+          <li>週所定労働日数のデータ検証（1-5の整数）</li>
+          <li>残有給日数の条件付き書式（0日:赤、1-5日:オレンジ、10日以上:緑）</li>
+          <li>ヘッダー行の固定</li>
+        </ul>
+        <p style="margin: 10px 0; color: #F57C00; font-weight: bold;">
+          ※ 既存のデータは保持されます。フォーマットのみが変更されます。
+        </p>
+      </div>
+
+      <div style="margin: 20px 0;">
+        <button onclick="formatMaster()"
+                style="padding: 12px 24px;
+                       background: #4CAF50;
+                       color: white;
+                       border: none;
+                       border-radius: 5px;
+                       font-size: 16px;
+                       font-weight: bold;
+                       cursor: pointer;
+                       box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+          フォーマットを設定
+        </button>
+      </div>
+
+      <div id="formatMasterStatus" style="margin: 20px 0; padding: 15px; border-radius: 5px; display: none;"></div>
+    </div>
+
     <!-- マニュアル追加 -->
     <div style="margin: 20px 0; padding: 20px; background: white; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
       <h3 style="color: #2196F3; border-bottom: 2px solid #2196F3; padding-bottom: 10px;">シート操作マニュアル</h3>
@@ -1586,6 +1627,55 @@
     // =============================
     // システム設定機能のJavaScript
     // =============================
+
+    function formatMaster() {
+      if (!confirm('マスターシートのフォーマットを設定しますか？\n\n列構成、フォーマット、データ検証などが設定されます。\n既存のデータは保持されます。')) {
+        return;
+      }
+
+      var statusDiv = document.getElementById('formatMasterStatus');
+      statusDiv.style.display = 'block';
+      statusDiv.style.background = '#fff3cd';
+      statusDiv.style.border = '1px solid #ffeaa7';
+      statusDiv.style.color = '#856404';
+      statusDiv.innerHTML = '<strong>処理中...</strong> マスターシートのフォーマットを設定しています。しばらくお待ちください。';
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          console.log('フォーマット設定結果:', result);
+
+          if (result.success) {
+            statusDiv.style.background = '#d4edda';
+            statusDiv.style.border = '1px solid #c3e6cb';
+            statusDiv.style.color = '#155724';
+
+            var detailHtml = '<strong>完了!</strong> ' + result.message + '<br><br>';
+            detailHtml += '<div style="margin-top: 10px; padding: 10px; background: #E8F5E9; border-radius: 3px;">';
+            detailHtml += '<strong>設定内容:</strong><ul style="margin: 10px 0;">';
+            detailHtml += '<li>列数: ' + result.details.columns + '列</li>';
+            detailHtml += '<li>フォーマット行数: ' + result.details.formattedRows + '行</li>';
+            detailHtml += '<li>データ検証: ' + result.details.validations + '</li>';
+            detailHtml += '<li>条件付き書式: ' + result.details.conditionalFormats + '</li>';
+            detailHtml += '</ul></div>';
+            detailHtml += '<p style="margin-top: 10px; color: #2E7D32;">スプレッドシートでフォーマットを確認してください。</p>';
+
+            statusDiv.innerHTML = detailHtml;
+          } else {
+            statusDiv.style.background = '#f8d7da';
+            statusDiv.style.border = '1px solid #f5c6cb';
+            statusDiv.style.color = '#721c24';
+            statusDiv.innerHTML = '<strong>エラー:</strong> ' + result.message;
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('フォーマット設定エラー:', error);
+          statusDiv.style.background = '#f8d7da';
+          statusDiv.style.border = '1px solid #f5c6cb';
+          statusDiv.style.color = '#721c24';
+          statusDiv.innerHTML = '<strong>システムエラー:</strong> ' + error.message;
+        })
+        .formatMasterSheet();
+    }
 
     function addManuals() {
       if (!confirm('マスターシートと付与履歴シートにマニュアルを追加しますか？\n\n既存のマニュアルがある場合は上書きされます。')) {

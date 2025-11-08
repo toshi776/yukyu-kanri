@@ -1072,47 +1072,188 @@ function setupMasterSheetColumns() {
   try {
     var ss = getSpreadsheet();
     var masterSheet = ss.getSheetByName('マスター');
-    
+
     if (!masterSheet) {
       throw new Error('マスターシートが見つかりません');
     }
-    
+
     // 現在の列数を確認
     var lastColumn = masterSheet.getLastColumn();
-    
+
     // 必要な列が不足している場合は追加
     var requiredColumns = [
       'A: 利用者番号',
-      'B: 利用者名', 
+      'B: 利用者名',
       'C: 残有給日数',
       'D: 備考',
       'E: 入社日',
       'F: 週所定労働日数',
-      'G: 初回付与日'
+      'G: 初回付与日',
+      'H: 最新年次付与日'
     ];
-    
-    if (lastColumn < 7) {
+
+    if (lastColumn < 8) {
       console.log('マスターシートに列を追加します');
-      
+
       // ヘッダー行を更新
-      var headerRange = masterSheet.getRange(1, 1, 1, 7);
+      var headerRange = masterSheet.getRange(1, 1, 1, 8);
       headerRange.setValues([
-        ['利用者番号', '利用者名', '残有給日数', '備考', '入社日', '週所定労働日数', '初回付与日']
+        ['利用者番号', '利用者名', '残有給日数', '備考', '入社日', '週所定労働日数', '初回付与日', '最新年次付与日']
       ]);
-      
+
       console.log('マスターシートの列構成を更新しました');
     }
-    
+
     return {
       success: true,
       message: 'マスターシートの設定完了'
     };
-    
+
   } catch (error) {
     console.error('マスターシート設定エラー:', error);
     return {
       success: false,
       error: error.message
+    };
+  }
+}
+
+/**
+ * マスターシートのフォーマットを整える（完全版）
+ * @return {Object} 処理結果
+ */
+function formatMasterSheet() {
+  try {
+    console.log('=== マスターシートフォーマット設定開始 ===');
+
+    var ss = getSpreadsheet();
+    var masterSheet = ss.getSheetByName('マスター');
+
+    if (!masterSheet) {
+      throw new Error('マスターシートが見つかりません');
+    }
+
+    // 1. ヘッダー行を設定
+    var headers = [
+      '利用者番号',
+      '利用者名',
+      '残有給日数',
+      '備考',
+      '入社日',
+      '週所定労働日数',
+      '初回付与日',
+      '最新年次付与日'
+    ];
+
+    var headerRange = masterSheet.getRange(1, 1, 1, 8);
+    headerRange.setValues([headers]);
+
+    // ヘッダー行の書式設定
+    headerRange.setFontWeight('bold');
+    headerRange.setBackground('#4CAF50');
+    headerRange.setFontColor('white');
+    headerRange.setHorizontalAlignment('center');
+    headerRange.setVerticalAlignment('middle');
+
+    // 2. 列幅を設定
+    masterSheet.setColumnWidth(1, 100);  // A: 利用者番号
+    masterSheet.setColumnWidth(2, 150);  // B: 利用者名
+    masterSheet.setColumnWidth(3, 100);  // C: 残有給日数
+    masterSheet.setColumnWidth(4, 200);  // D: 備考
+    masterSheet.setColumnWidth(5, 120);  // E: 入社日
+    masterSheet.setColumnWidth(6, 140);  // F: 週所定労働日数
+    masterSheet.setColumnWidth(7, 120);  // G: 初回付与日
+    masterSheet.setColumnWidth(8, 140);  // H: 最新年次付与日
+
+    // 3. データ行のフォーマット設定
+    var lastRow = Math.max(masterSheet.getLastRow(), 100); // 最低100行確保
+
+    // C列（残有給日数）: 数値フォーマット、中央揃え
+    var remainingRange = masterSheet.getRange(2, 3, lastRow - 1, 1);
+    remainingRange.setNumberFormat('0');
+    remainingRange.setHorizontalAlignment('center');
+
+    // E列（入社日）: 日付フォーマット
+    var hireDateRange = masterSheet.getRange(2, 5, lastRow - 1, 1);
+    hireDateRange.setNumberFormat('yyyy/mm/dd');
+
+    // F列（週所定労働日数）: 数値フォーマット、中央揃え
+    var weekDaysRange = masterSheet.getRange(2, 6, lastRow - 1, 1);
+    weekDaysRange.setNumberFormat('0');
+    weekDaysRange.setHorizontalAlignment('center');
+
+    // G列（初回付与日）: 日付フォーマット
+    var initialGrantRange = masterSheet.getRange(2, 7, lastRow - 1, 1);
+    initialGrantRange.setNumberFormat('yyyy/mm/dd');
+
+    // H列（最新年次付与日）: 日付フォーマット
+    var annualGrantRange = masterSheet.getRange(2, 8, lastRow - 1, 1);
+    annualGrantRange.setNumberFormat('yyyy/mm/dd');
+
+    // 4. データ検証を設定
+    // F列（週所定労働日数）: 1-5の整数のみ
+    var weekDaysValidation = SpreadsheetApp.newDataValidation()
+      .requireNumberBetween(1, 5)
+      .setAllowInvalid(false)
+      .setHelpText('週所定労働日数は1〜5の整数で入力してください')
+      .build();
+    weekDaysRange.setDataValidation(weekDaysValidation);
+
+    // 5. 条件付き書式を設定（残有給日数の色分け）
+    var rules = masterSheet.getConditionalFormatRules();
+
+    // 残日数0日: 赤色
+    var zeroRule = SpreadsheetApp.newConditionalFormatRule()
+      .whenNumberEqualTo(0)
+      .setBackground('#FFCDD2')
+      .setFontColor('#C62828')
+      .setRanges([remainingRange])
+      .build();
+
+    // 残日数1-5日: オレンジ色
+    var lowRule = SpreadsheetApp.newConditionalFormatRule()
+      .whenNumberBetween(1, 5)
+      .setBackground('#FFE0B2')
+      .setFontColor('#E65100')
+      .setRanges([remainingRange])
+      .build();
+
+    // 残日数10日以上: 緑色
+    var goodRule = SpreadsheetApp.newConditionalFormatRule()
+      .whenNumberGreaterThanOrEqualTo(10)
+      .setBackground('#C8E6C9')
+      .setFontColor('#2E7D32')
+      .setRanges([remainingRange])
+      .build();
+
+    rules.push(zeroRule);
+    rules.push(lowRule);
+    rules.push(goodRule);
+    masterSheet.setConditionalFormatRules(rules);
+
+    // 6. 行の固定（ヘッダー行）
+    masterSheet.setFrozenRows(1);
+
+    console.log('=== マスターシートフォーマット設定完了 ===');
+
+    return {
+      success: true,
+      message: 'マスターシートのフォーマットを設定しました',
+      details: {
+        columns: 8,
+        headers: headers,
+        formattedRows: lastRow - 1,
+        validations: 'F列（週所定労働日数）: 1-5の整数',
+        conditionalFormats: '残日数の色分け（0日:赤、1-5日:オレンジ、10日以上:緑）'
+      }
+    };
+
+  } catch (error) {
+    console.error('マスターシートフォーマット設定エラー:', error);
+    return {
+      success: false,
+      error: error.message,
+      message: 'マスターシートのフォーマット設定に失敗しました: ' + error.message
     };
   }
 }
