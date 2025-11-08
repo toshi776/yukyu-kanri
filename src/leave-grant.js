@@ -1326,51 +1326,51 @@ function getAnnualGrantTargets() {
       var hireDateStr = row[4]; // E列: 入社日
       var weeklyWorkDaysStr = row[5]; // F列: 週所定労働日数
       var initialGrantDateStr = row[6]; // G列: 初回付与日
-      
+      var latestAnnualGrantDateStr = row[7]; // H列: 最新年次付与日
+
       if (!hireDateStr || !initialGrantDateStr) {
         continue; // 入社日がないか、初回付与がまだの場合は対象外
       }
-      
+
       var hireDate = new Date(hireDateStr);
       var initialGrantDate = new Date(initialGrantDateStr);
       hireDate.setHours(0, 0, 0, 0);
       initialGrantDate.setHours(0, 0, 0, 0);
-      
-      // 勤続年数を計算（初回付与日からの年数）
-      var workYears = calculateWorkYears(initialGrantDate, today);
-      
-      // 1年以上経過している場合は年次付与対象
-      if (workYears >= 1) {
-        var weeklyWorkDays = Number(weeklyWorkDaysStr) || 5; // デフォルト5日
-        
-        // 次回付与予定日を計算（初回付与日から1年ごと）
-        var nextGrantYear = Math.floor(workYears) + 1;
-        var nextGrantDate = new Date(initialGrantDate);
-        nextGrantDate.setFullYear(nextGrantDate.getFullYear() + nextGrantYear);
-        
-        // 今年の4月1日以降で、まだ今年度の付与を受けていない場合
-        var currentFiscalYear = today.getFullYear();
-        if (today.getMonth() < 3) { // 1-3月の場合は前年度
-          currentFiscalYear--;
-        }
-        
-        var fiscalYearStart = new Date(currentFiscalYear, 3, 1); // 4月1日
-        
-        // 今年度に付与すべきかチェック
-        if (nextGrantDate <= today && initialGrantDate < fiscalYearStart) {
-          targets.push({
-            userId: userId,
-            name: name,
-            hireDate: hireDate,
-            initialGrantDate: initialGrantDate,
-            workYears: workYears,
-            weeklyWorkDays: weeklyWorkDays,
-            nextGrantDate: nextGrantDate,
-            fiscalYear: currentFiscalYear
-          });
-          
-          console.log('年次付与対象:', userId, name, '勤続年数:' + Math.floor(workYears) + '年');
-        }
+
+      // 勤続年数を計算（入社日からの年数）
+      var workYears = calculateWorkYears(hireDate, today);
+
+      // 初回付与を受けている場合は年次付与対象候補
+      var weeklyWorkDays = Number(weeklyWorkDaysStr) || 5; // デフォルト5日
+
+      // 次回付与予定日を計算
+      var nextGrantDate;
+      if (latestAnnualGrantDateStr) {
+        // 最新年次付与日がある場合は、それに1年を加算
+        var latestAnnualGrantDate = new Date(latestAnnualGrantDateStr);
+        latestAnnualGrantDate.setHours(0, 0, 0, 0);
+        nextGrantDate = new Date(latestAnnualGrantDate);
+        nextGrantDate.setFullYear(nextGrantDate.getFullYear() + 1);
+      } else {
+        // 最新年次付与日がない場合は、初回付与日に1年を加算
+        nextGrantDate = new Date(initialGrantDate);
+        nextGrantDate.setFullYear(nextGrantDate.getFullYear() + 1);
+      }
+
+      // 次回付与日が今日以前の場合、付与対象
+      if (nextGrantDate <= today) {
+        targets.push({
+          userId: userId,
+          name: name,
+          hireDate: hireDate,
+          initialGrantDate: initialGrantDate,
+          latestAnnualGrantDate: latestAnnualGrantDateStr ? new Date(latestAnnualGrantDateStr) : null,
+          workYears: workYears,
+          weeklyWorkDays: weeklyWorkDays,
+          nextGrantDate: nextGrantDate
+        });
+
+        console.log('年次付与対象:', userId, name, '次回付与日:' + Utilities.formatDate(nextGrantDate, 'JST', 'yyyy/MM/dd'));
       }
     }
     
