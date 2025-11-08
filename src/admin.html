@@ -275,6 +275,7 @@
     <button class="tab-button" onclick="showTab('url-management')">URL管理</button>
     <button class="tab-button" onclick="showTab('grant-management')">付与管理</button>
     <button class="tab-button" onclick="showTab('expiry-management')">失効管理</button>
+    <button class="tab-button" onclick="showTab('system-settings')">システム設定</button>
   </div>
   
   <!-- 利用者一覧タブ -->
@@ -947,6 +948,79 @@
     </div>
   </div>
 
+  <!-- システム設定タブ -->
+  <div id="system-settingsTab" class="tab-content">
+    <h2>システム設定</h2>
+
+    <!-- マニュアル追加 -->
+    <div style="margin: 20px 0; padding: 20px; background: white; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h3 style="color: #2196F3; border-bottom: 2px solid #2196F3; padding-bottom: 10px;">シート操作マニュアル</h3>
+
+      <div style="background: #E3F2FD; padding: 15px; border-radius: 5px; margin: 15px 0;">
+        <h4 style="margin-top: 0; color: #1565C0;">マニュアル追加機能</h4>
+        <p style="margin: 10px 0; line-height: 1.6;">
+          マスターシートと付与履歴シートの空き列（J列以降）に、使い方マニュアルを追加します。<br>
+          <strong>含まれる内容：</strong>
+        </p>
+        <ul style="margin: 10px 0 10px 20px; line-height: 1.8;">
+          <li>各列の説明</li>
+          <li>手動修正の手順（パターン別）</li>
+          <li>データの見方（有効/失効/消費済み）</li>
+          <li>FIFO方式の説明</li>
+          <li>自動処理との連携</li>
+          <li>注意事項</li>
+        </ul>
+        <p style="margin: 10px 0; color: #F57C00; font-weight: bold;">
+          ※ マニュアルは何度でも実行できます。既存のマニュアルは上書きされます。
+        </p>
+      </div>
+
+      <div style="margin: 20px 0;">
+        <button onclick="addManuals()"
+                style="padding: 12px 24px;
+                       background: #2196F3;
+                       color: white;
+                       border: none;
+                       border-radius: 5px;
+                       font-size: 16px;
+                       font-weight: bold;
+                       cursor: pointer;
+                       box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+          マニュアルを追加
+        </button>
+      </div>
+
+      <div id="manualAddStatus" style="margin: 20px 0; padding: 15px; border-radius: 5px; display: none;"></div>
+    </div>
+
+    <!-- その他のシステム設定 -->
+    <div style="margin: 20px 0; padding: 20px; background: white; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h3 style="color: #666; border-bottom: 2px solid #999; padding-bottom: 10px;">システム情報</h3>
+
+      <div style="margin: 15px 0;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 10px; font-weight: bold; width: 200px;">バージョン</td>
+            <td style="padding: 10px;">1.0.0</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 10px; font-weight: bold;">最終更新</td>
+            <td style="padding: 10px;">2025-11-08</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 10px; font-weight: bold;">自動処理スケジュール</td>
+            <td style="padding: 10px;">
+              • 毎日9時: データ整合性チェック<br>
+              • 毎日9時30分: 失効処理<br>
+              • 毎日10時: 6ヶ月付与チェック<br>
+              • 毎年4月1日8時: 年次付与処理
+            </td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <script>
     // URL管理機能のJavaScript
     
@@ -1507,6 +1581,64 @@
           statusDiv.innerHTML = '<strong>システムエラー:</strong> ' + error.message;
         })
         .processExpiredLeaves();
+    }
+
+    // =============================
+    // システム設定機能のJavaScript
+    // =============================
+
+    function addManuals() {
+      if (!confirm('マスターシートと付与履歴シートにマニュアルを追加しますか？\n\n既存のマニュアルがある場合は上書きされます。')) {
+        return;
+      }
+
+      var statusDiv = document.getElementById('manualAddStatus');
+      statusDiv.style.display = 'block';
+      statusDiv.style.background = '#fff3cd';
+      statusDiv.style.border = '1px solid #ffeaa7';
+      statusDiv.style.color = '#856404';
+      statusDiv.innerHTML = '<strong>処理中...</strong> マニュアルを追加しています。しばらくお待ちください。';
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          console.log('マニュアル追加結果:', result);
+
+          if (result.success) {
+            statusDiv.style.background = '#d4edda';
+            statusDiv.style.border = '1px solid #c3e6cb';
+            statusDiv.style.color = '#155724';
+
+            var detailHtml = '<strong>完了!</strong> ' + result.message + '<br><br>';
+            detailHtml += '<div style="margin-top: 10px; padding: 10px; background: #E8F5E9; border-radius: 3px;">';
+            detailHtml += '<strong>追加されたマニュアル:</strong><ul style="margin: 10px 0;">';
+
+            result.results.forEach(function(item) {
+              if (item.success) {
+                detailHtml += '<li>' + item.sheet + 'シート: 完了</li>';
+              } else {
+                detailHtml += '<li>' + item.sheet + 'シート: 失敗 (' + (item.error || '不明なエラー') + ')</li>';
+              }
+            });
+
+            detailHtml += '</ul></div>';
+            detailHtml += '<p style="margin-top: 10px; color: #1976D2;">スプレッドシートのJ列以降でマニュアルを確認できます。</p>';
+
+            statusDiv.innerHTML = detailHtml;
+          } else {
+            statusDiv.style.background = '#f8d7da';
+            statusDiv.style.border = '1px solid #f5c6cb';
+            statusDiv.style.color = '#721c24';
+            statusDiv.innerHTML = '<strong>エラー:</strong> ' + result.message;
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('マニュアル追加エラー:', error);
+          statusDiv.style.background = '#f8d7da';
+          statusDiv.style.border = '1px solid #f5c6cb';
+          statusDiv.style.color = '#721c24';
+          statusDiv.innerHTML = '<strong>システムエラー:</strong> ' + error.message;
+        })
+        .addSheetManuals();
     }
 
     // タブ切り替え機能を拡張

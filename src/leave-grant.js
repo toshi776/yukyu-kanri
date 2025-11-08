@@ -1480,13 +1480,286 @@ function sendAnnualGrantNotification(target, grantDays) {
       grantType: '年次付与（' + Math.floor(target.workYears) + '年目）',
       workYears: Math.floor(target.workYears)
     };
-    
+
     console.log('年次付与通知:', notificationData);
-    
+
     // 実際の通知送信はテストモードなので省略
     // sendGrantNotification(notificationData);
-    
+
   } catch (error) {
     console.error('年次付与通知エラー:', error);
+  }
+}
+
+// =============================
+// シートマニュアル機能
+// =============================
+
+/**
+ * 各シートにマニュアルを追加
+ * @return {Object} 処理結果
+ */
+function addSheetManuals() {
+  try {
+    console.log('=== シートマニュアル追加開始 ===');
+
+    var ss = getSpreadsheet();
+    var results = [];
+
+    // マスターシートにマニュアルを追加
+    var masterResult = addMasterSheetManual(ss);
+    results.push(masterResult);
+
+    // 付与履歴シートにマニュアルを追加
+    var grantHistoryResult = addGrantHistorySheetManual(ss);
+    results.push(grantHistoryResult);
+
+    console.log('=== シートマニュアル追加完了 ===');
+
+    return {
+      success: true,
+      results: results,
+      message: 'シートマニュアルを追加しました'
+    };
+
+  } catch (error) {
+    console.error('シートマニュアル追加エラー:', error);
+    return {
+      success: false,
+      error: error.message,
+      message: 'シートマニュアルの追加に失敗しました: ' + error.message
+    };
+  }
+}
+
+/**
+ * マスターシートにマニュアルを追加
+ * @param {Spreadsheet} ss - スプレッドシート
+ * @return {Object} 処理結果
+ */
+function addMasterSheetManual(ss) {
+  try {
+    var masterSheet = ss.getSheetByName('マスター');
+
+    if (!masterSheet) {
+      throw new Error('マスターシートが見つかりません');
+    }
+
+    // J列（10列目）からマニュアルを記載
+    var manualStartCol = 10;
+
+    // マニュアルタイトル
+    masterSheet.getRange(1, manualStartCol).setValue('【マスターシート 使い方マニュアル】');
+    masterSheet.getRange(1, manualStartCol).setFontWeight('bold');
+    masterSheet.getRange(1, manualStartCol).setBackground('#2196F3');
+    masterSheet.getRange(1, manualStartCol).setFontColor('white');
+    masterSheet.setColumnWidth(manualStartCol, 300);
+
+    // マニュアル内容
+    var manualContent = [
+      [''],
+      ['■ このシートの役割'],
+      ['利用者の基本情報と有給残日数を管理します。'],
+      [''],
+      ['■ 列の説明'],
+      ['A列: 利用者番号（例: R01, P01, S01, E01）'],
+      ['B列: 利用者名'],
+      ['C列: 残有給日数（自動計算・手動修正可）'],
+      ['D列: 備考（任意のメモ）'],
+      ['E列: 入社日（付与計算に使用）'],
+      ['F列: 週所定労働日数（1-5、付与日数の計算に使用）'],
+      ['G列: 初回付与日（入社6ヶ月後に自動記録）'],
+      ['H列: 最新年次付与日（4月1日の年次付与時に自動記録）'],
+      [''],
+      ['■ 手動修正が必要な場合'],
+      ['【パターン1: 残日数のみ修正】'],
+      ['  C列の残日数を直接編集してください。'],
+      ['  翌日の日次処理で整合性チェックが行われます。'],
+      [''],
+      ['【パターン2: 厳密に管理する場合】'],
+      ['  1. C列の残日数を修正'],
+      ['  2. 付与履歴シートに修正記録を追加'],
+      ['  （利用者番号、付与日、付与日数、失効日、残日数、付与タイプ=「手動調整」等）'],
+      [''],
+      ['■ 新規利用者の追加手順'],
+      ['1. 利用者番号を設定（事業所コード+連番）'],
+      ['2. 利用者名を入力'],
+      ['3. 残有給日数は0または初期値'],
+      ['4. 入社日を入力（必須）'],
+      ['5. 週所定労働日数を入力（1-5、デフォルト5）'],
+      ['6. G列・H列は自動処理で記録されるため空欄でOK'],
+      [''],
+      ['■ 注意事項'],
+      ['・利用者番号は変更しないでください（システム全体で使用）'],
+      ['・入社日が正しくないと付与処理が正しく動作しません'],
+      ['・残日数の手動修正は慎重に行ってください'],
+      ['・退職者は削除せず、備考欄に「退職」と記入してください'],
+      [''],
+      ['■ 自動処理について'],
+      ['・毎日10時: 6ヶ月付与チェック（入社6ヶ月後の自動付与）'],
+      ['・毎年4月1日 8時: 年次付与処理（勤続年数に応じた付与）'],
+      ['・毎日9時30分: 失効処理（有効期限切れの自動失効）'],
+      ['・毎日9時: データ整合性チェック'],
+      ['']
+    ];
+
+    // マニュアルを書き込み
+    for (var i = 0; i < manualContent.length; i++) {
+      var cell = masterSheet.getRange(i + 2, manualStartCol);
+      cell.setValue(manualContent[i][0]);
+      cell.setWrap(true);
+
+      // 見出し行の書式設定
+      if (manualContent[i][0].indexOf('■') === 0) {
+        cell.setFontWeight('bold');
+        cell.setBackground('#E3F2FD');
+        cell.setFontColor('#1976D2');
+      } else if (manualContent[i][0].indexOf('【') === 0) {
+        cell.setFontWeight('bold');
+        cell.setFontColor('#FF6F00');
+      }
+    }
+
+    console.log('マスターシートにマニュアルを追加しました');
+
+    return {
+      success: true,
+      sheet: 'マスター',
+      message: 'マスターシートにマニュアルを追加しました'
+    };
+
+  } catch (error) {
+    console.error('マスターシートマニュアル追加エラー:', error);
+    return {
+      success: false,
+      sheet: 'マスター',
+      error: error.message
+    };
+  }
+}
+
+/**
+ * 付与履歴シートにマニュアルを追加
+ * @param {Spreadsheet} ss - スプレッドシート
+ * @return {Object} 処理結果
+ */
+function addGrantHistorySheetManual(ss) {
+  try {
+    var grantHistorySheet = getOrCreateGrantHistorySheet(ss);
+
+    // J列（10列目）からマニュアルを記載
+    var manualStartCol = 10;
+
+    // マニュアルタイトル
+    grantHistorySheet.getRange(1, manualStartCol).setValue('【付与履歴シート 使い方マニュアル】');
+    grantHistorySheet.getRange(1, manualStartCol).setFontWeight('bold');
+    grantHistorySheet.getRange(1, manualStartCol).setBackground('#4CAF50');
+    grantHistorySheet.getRange(1, manualStartCol).setFontColor('white');
+    grantHistorySheet.setColumnWidth(manualStartCol, 300);
+
+    // マニュアル内容
+    var manualContent = [
+      [''],
+      ['■ このシートの役割'],
+      ['有給の付与履歴を記録し、FIFO方式（先入先出）で消費を管理します。'],
+      ['失効処理もこのシートで管理されます。'],
+      [''],
+      ['■ 列の説明'],
+      ['A列: 利用者番号'],
+      ['B列: 付与日（有給が付与された日）'],
+      ['C列: 付与日数（付与された日数）'],
+      ['D列: 失効日（付与日から2年後）'],
+      ['E列: 残日数（この付与分の残り日数）'],
+      ['F列: 付与タイプ（初回/年次/手動調整など）'],
+      ['G列: 勤続年数（付与時点の勤続年数）'],
+      ['H列: 作成日時（レコード作成日時）'],
+      [''],
+      ['■ データの見方'],
+      ['【有効な有給】'],
+      ['  失効日 > 今日 かつ 残日数 > 0'],
+      [''],
+      ['【失効済みの有給】'],
+      ['  失効日 <= 今日 または 残日数 = 0'],
+      ['  ※失効処理により残日数が0に更新されます'],
+      [''],
+      ['【消費済みの有給】'],
+      ['  残日数 = 0（ただし失効日前）'],
+      [''],
+      ['■ 手動で修正する場合'],
+      ['【ケース1: 付与日数を追加したい】'],
+      ['  新しい行を追加して以下を入力：'],
+      ['  - 利用者番号'],
+      ['  - 付与日（今日または任意の日付）'],
+      ['  - 付与日数'],
+      ['  - 失効日（付与日から2年後を計算）'],
+      ['  - 残日数（初期値は付与日数と同じ）'],
+      ['  - 付与タイプ（「手動調整」など）'],
+      ['  - 勤続年数（参考値）'],
+      ['  - 作成日時（今日の日時）'],
+      ['  ※追加後、マスターシートのC列も手動で更新してください'],
+      [''],
+      ['【ケース2: 誤って消費された分を戻したい】'],
+      ['  該当行のE列（残日数）を修正'],
+      ['  ※マスターシートのC列も手動で更新してください'],
+      [''],
+      ['【ケース3: 特例で失効を取り消したい】'],
+      ['  1. E列（残日数）を元の値に戻す'],
+      ['  2. 必要ならD列（失効日）を延長'],
+      ['  ※マスターシートのC列も手動で更新してください'],
+      [''],
+      ['■ FIFO方式（先入先出）について'],
+      ['有給を使用する際、付与日が古いものから順に消費されます。'],
+      ['これにより、失効リスクの高い有給から優先的に使用されます。'],
+      [''],
+      ['例:'],
+      ['  2023/04/01 付与 10日 残5日'],
+      ['  2024/04/01 付与 11日 残11日'],
+      ['  → 3日使用すると、2023年分から消費され残2日になります'],
+      [''],
+      ['■ 自動処理との連携'],
+      ['・有給申請が承認されると、このシートの残日数が自動的に減ります'],
+      ['・失効処理（毎日9:30）で失効日を過ぎた行の残日数が0になります'],
+      ['・付与処理（6ヶ月/年次）で新しい行が自動追加されます'],
+      [''],
+      ['■ 注意事項'],
+      ['・このシートを直接編集した場合、マスターシートも手動更新が必要です'],
+      ['・削除は避け、修正する場合は慎重に行ってください'],
+      ['・過去のデータは監査証跡として保持することを推奨します'],
+      ['・整合性チェック（毎日9時）で不整合があればログに記録されます'],
+      ['']
+    ];
+
+    // マニュアルを書き込み
+    for (var i = 0; i < manualContent.length; i++) {
+      var cell = grantHistorySheet.getRange(i + 2, manualStartCol);
+      cell.setValue(manualContent[i][0]);
+      cell.setWrap(true);
+
+      // 見出し行の書式設定
+      if (manualContent[i][0].indexOf('■') === 0) {
+        cell.setFontWeight('bold');
+        cell.setBackground('#C8E6C9');
+        cell.setFontColor('#2E7D32');
+      } else if (manualContent[i][0].indexOf('【') === 0) {
+        cell.setFontWeight('bold');
+        cell.setFontColor('#F57C00');
+      }
+    }
+
+    console.log('付与履歴シートにマニュアルを追加しました');
+
+    return {
+      success: true,
+      sheet: '付与履歴',
+      message: '付与履歴シートにマニュアルを追加しました'
+    };
+
+  } catch (error) {
+    console.error('付与履歴シートマニュアル追加エラー:', error);
+    return {
+      success: false,
+      sheet: '付与履歴',
+      error: error.message
+    };
   }
 }
