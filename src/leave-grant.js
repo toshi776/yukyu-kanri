@@ -473,6 +473,8 @@ function getRecentGrantHistory(limit) {
 
   } catch (error) {
     console.error('最近の付与履歴取得エラー:', error);
+    console.error('エラー詳細:', error.message);
+    console.error('スタックトレース:', error.stack);
     return [];
   }
 }
@@ -934,6 +936,8 @@ function getSixMonthGrantTargets() {
     
   } catch (error) {
     console.error('6ヶ月付与対象者抽出エラー:', error);
+    console.error('エラー詳細:', error.message);
+    console.error('スタックトレース:', error.stack);
     return [];
   }
 }
@@ -1379,6 +1383,8 @@ function getAnnualGrantTargets() {
     
   } catch (error) {
     console.error('年次付与対象者抽出エラー:', error);
+    console.error('エラー詳細:', error.message);
+    console.error('スタックトレース:', error.stack);
     return [];
   }
 }

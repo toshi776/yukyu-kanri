@@ -177,3 +177,58 @@ function debugGrantHistory() {
     console.error('スタックトレース:', error.stack);
   }
 }
+
+/**
+ * 失効予定確認のデバッグ
+ */
+function debugExpiringLeaves() {
+  console.log('=== 失効予定確認デバッグ ===');
+
+  try {
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    console.log('今日:', Utilities.formatDate(today, 'JST', 'yyyy/MM/dd'));
+    console.log('');
+
+    // 1週間以内
+    console.log('--- 1週間以内の失効予定 ---');
+    var leaves7days = getExpiringLeaves(7);
+    console.log('件数:', leaves7days.length);
+    leaves7days.forEach(function(leave) {
+      var daysUntil = Math.ceil((new Date(leave.expiryDate) - today) / (1000 * 60 * 60 * 24));
+      console.log('  - ' + leave.userId + ': ' + leave.userName);
+      console.log('    失効日: ' + leave.expiryDate + ' (あと' + daysUntil + '日)');
+      console.log('    残日数: ' + leave.remainingDays + '日');
+    });
+    console.log('');
+
+    // 1ヶ月以内
+    console.log('--- 1ヶ月以内の失効予定 ---');
+    var leaves30days = getExpiringLeaves(30);
+    console.log('件数:', leaves30days.length);
+    leaves30days.forEach(function(leave) {
+      var daysUntil = Math.ceil((new Date(leave.expiryDate) - today) / (1000 * 60 * 60 * 24));
+      console.log('  - ' + leave.userId + ': ' + leave.userName);
+      console.log('    失効日: ' + leave.expiryDate + ' (あと' + daysUntil + '日)');
+      console.log('    残日数: ' + leave.remainingDays + '日');
+    });
+    console.log('');
+
+    // 3ヶ月以内
+    console.log('--- 3ヶ月以内の失効予定 ---');
+    var leaves90days = getExpiringLeaves(90);
+    console.log('件数:', leaves90days.length);
+    console.log('最初の5件:');
+    for (var i = 0; i < Math.min(5, leaves90days.length); i++) {
+      var leave = leaves90days[i];
+      var daysUntil = Math.ceil((new Date(leave.expiryDate) - today) / (1000 * 60 * 60 * 24));
+      console.log('  ' + (i + 1) + '. ' + leave.userId + ': ' + leave.userName);
+      console.log('     失効日: ' + leave.expiryDate + ' (あと' + daysUntil + '日)');
+      console.log('     残日数: ' + leave.remainingDays + '日');
+    }
+
+  } catch (error) {
+    console.error('エラー:', error);
+    console.error('スタックトレース:', error.stack);
+  }
+}
