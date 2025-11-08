@@ -450,6 +450,11 @@ function getRecentGrantHistory(limit) {
       var row = data[i];
       var userId = String(row[0]);
 
+      // 空行をスキップ
+      if (!userId || userId.trim() === '') {
+        continue;
+      }
+
       history.push({
         userId: userId,
         userName: userNameMap[userId] || '-',
