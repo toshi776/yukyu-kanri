@@ -1633,6 +1633,416 @@ function sendAnnualGrantNotification(target, grantDays) {
 }
 
 // =============================
+// テストデータ生成機能
+// =============================
+
+/**
+ * テストデータを生成してスプレッドシートに投入
+ * @return {Object} 処理結果
+ */
+function generateTestData() {
+  try {
+    console.log('=== テストデータ生成開始 ===');
+
+    var ss = getSpreadsheet();
+    var results = {
+      masterUsers: 0,
+      grantRecords: 0,
+      scenarios: []
+    };
+
+    // 1. マスターシートにテストユーザーを追加
+    var masterResult = generateMasterTestData(ss);
+    results.masterUsers = masterResult.count;
+
+    // 2. 付与履歴シートにテストデータを追加
+    var grantResult = generateGrantHistoryTestData(ss);
+    results.grantRecords = grantResult.count;
+    results.scenarios = grantResult.scenarios;
+
+    // 3. マスターシートの残日数を更新
+    updateMasterRemainingDays(ss);
+
+    console.log('=== テストデータ生成完了 ===');
+
+    return {
+      success: true,
+      message: 'テストデータを生成しました',
+      details: results
+    };
+
+  } catch (error) {
+    console.error('テストデータ生成エラー:', error);
+    return {
+      success: false,
+      error: error.message,
+      message: 'テストデータ生成に失敗しました: ' + error.message
+    };
+  }
+}
+
+/**
+ * マスターシートにテストユーザーを追加
+ */
+function generateMasterTestData(ss) {
+  var masterSheet = ss.getSheetByName('マスター');
+  var today = new Date();
+
+  var testUsers = [
+    // 6ヶ月付与対象者（入社6ヶ月経過、初回付与前）
+    {
+      userId: 'TEST01',
+      name: 'テスト太郎（6ヶ月経過）',
+      remaining: 0,
+      remarks: 'テストデータ：6ヶ月付与対象',
+      hireDate: new Date(today.getFullYear(), today.getMonth() - 6, today.getDate()),
+      weeklyWorkDays: 5,
+      initialGrantDate: null
+    },
+
+    // 6ヶ月付与対象者（週3日勤務）
+    {
+      userId: 'TEST02',
+      name: 'テスト花子（6ヶ月経過・週3日）',
+      remaining: 0,
+      remarks: 'テストデータ：6ヶ月付与対象（週3日）',
+      hireDate: new Date(today.getFullYear(), today.getMonth() - 7, 15),
+      weeklyWorkDays: 3,
+      initialGrantDate: null
+    },
+
+    // 年次付与対象者（1年6ヶ月経過）
+    {
+      userId: 'TEST03',
+      name: 'テスト次郎（1年6ヶ月）',
+      remaining: 5,
+      remarks: 'テストデータ：年次付与対象',
+      hireDate: new Date(today.getFullYear() - 2, 3, 1),
+      weeklyWorkDays: 5,
+      initialGrantDate: new Date(today.getFullYear() - 1, 9, 1)
+    },
+
+    // 付与履歴あり（失効間近あり）
+    {
+      userId: 'TEST04',
+      name: 'テスト三郎（失効間近）',
+      remaining: 8,
+      remarks: 'テストデータ：失効間近データあり',
+      hireDate: new Date(today.getFullYear() - 3, 6, 1),
+      weeklyWorkDays: 5,
+      initialGrantDate: new Date(today.getFullYear() - 3, 11, 1)
+    },
+
+    // 付与履歴あり（失効済みデータあり）
+    {
+      userId: 'TEST05',
+      name: 'テスト四郎（失効済みあり）',
+      remaining: 12,
+      remarks: 'テストデータ：失効済みデータあり',
+      hireDate: new Date(today.getFullYear() - 4, 4, 1),
+      weeklyWorkDays: 5,
+      initialGrantDate: new Date(today.getFullYear() - 4, 9, 1)
+    },
+
+    // FIFO確認用（複数付与履歴）
+    {
+      userId: 'TEST06',
+      name: 'テスト五郎（FIFO確認用）',
+      remaining: 25,
+      remarks: 'テストデータ：FIFO方式確認用',
+      hireDate: new Date(today.getFullYear() - 5, 3, 1),
+      weeklyWorkDays: 5,
+      initialGrantDate: new Date(today.getFullYear() - 5, 8, 1)
+    }
+  ];
+
+  testUsers.forEach(function(user) {
+    masterSheet.appendRow([
+      user.userId,
+      user.name,
+      user.remaining,
+      user.remarks,
+      user.hireDate,
+      user.weeklyWorkDays,
+      user.initialGrantDate,
+      null // 最新年次付与日
+    ]);
+  });
+
+  console.log('マスターシートにテストユーザーを追加:', testUsers.length + '名');
+
+  return {
+    count: testUsers.length,
+    users: testUsers
+  };
+}
+
+/**
+ * 付与履歴シートにテストデータを追加
+ */
+function generateGrantHistoryTestData(ss) {
+  var grantHistorySheet = getOrCreateGrantHistorySheet(ss);
+  var today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  var testGrants = [];
+  var scenarios = [];
+
+  // TEST03: 年次付与対象者のデータ
+  // 初回付与（1年6ヶ月前）
+  var test03Grant1Date = new Date(today.getFullYear() - 1, 9, 1);
+  var test03Grant1Expiry = new Date(test03Grant1Date);
+  test03Grant1Expiry.setFullYear(test03Grant1Expiry.getFullYear() + 2);
+  testGrants.push({
+    userId: 'TEST03',
+    grantDate: test03Grant1Date,
+    grantDays: 10,
+    expiryDate: test03Grant1Expiry,
+    remainingDays: 5, // 一部消費済み
+    grantType: '初回',
+    workYears: 0.5,
+    createdAt: test03Grant1Date
+  });
+
+  // TEST04: 失効間近データ
+  // 古い付与（失効まであと5日）
+  var test04Grant1Date = new Date(today);
+  test04Grant1Date.setFullYear(test04Grant1Date.getFullYear() - 2);
+  test04Grant1Date.setDate(test04Grant1Date.getDate() + 5); // 失効まで5日
+  var test04Grant1Expiry = new Date(test04Grant1Date);
+  test04Grant1Expiry.setFullYear(test04Grant1Expiry.getFullYear() + 2);
+  testGrants.push({
+    userId: 'TEST04',
+    grantDate: test04Grant1Date,
+    grantDays: 10,
+    expiryDate: test04Grant1Expiry,
+    remainingDays: 3, // 失効間近
+    grantType: '初回',
+    workYears: 0.5,
+    createdAt: test04Grant1Date
+  });
+  scenarios.push('TEST04: 5日後に失効予定（残3日）');
+
+  // 新しい付与
+  var test04Grant2Date = new Date(today.getFullYear() - 1, 3, 1);
+  var test04Grant2Expiry = new Date(test04Grant2Date);
+  test04Grant2Expiry.setFullYear(test04Grant2Expiry.getFullYear() + 2);
+  testGrants.push({
+    userId: 'TEST04',
+    grantDate: test04Grant2Date,
+    grantDays: 11,
+    expiryDate: test04Grant2Expiry,
+    remainingDays: 5,
+    grantType: '年次',
+    workYears: 1.5,
+    createdAt: test04Grant2Date
+  });
+
+  // TEST05: 失効済みデータ
+  // 失効済み（失効日が3ヶ月前）
+  var test05Grant1Date = new Date(today);
+  test05Grant1Date.setFullYear(test05Grant1Date.getFullYear() - 2);
+  test05Grant1Date.setMonth(test05Grant1Date.getMonth() - 3);
+  var test05Grant1Expiry = new Date(test05Grant1Date);
+  test05Grant1Expiry.setFullYear(test05Grant1Expiry.getFullYear() + 2);
+  testGrants.push({
+    userId: 'TEST05',
+    grantDate: test05Grant1Date,
+    grantDays: 10,
+    expiryDate: test05Grant1Expiry,
+    remainingDays: 0, // 失効済み
+    grantType: '初回',
+    workYears: 0.5,
+    createdAt: test05Grant1Date
+  });
+  scenarios.push('TEST05: 失効済み（3ヶ月前に失効、残0日）');
+
+  // 有効なデータ
+  var test05Grant2Date = new Date(today.getFullYear() - 1, 3, 1);
+  var test05Grant2Expiry = new Date(test05Grant2Date);
+  test05Grant2Expiry.setFullYear(test05Grant2Expiry.getFullYear() + 2);
+  testGrants.push({
+    userId: 'TEST05',
+    grantDate: test05Grant2Date,
+    grantDays: 11,
+    expiryDate: test05Grant2Expiry,
+    remainingDays: 11,
+    grantType: '年次',
+    workYears: 1.5,
+    createdAt: test05Grant2Date
+  });
+
+  var test05Grant3Date = new Date(today.getFullYear(), 3, 1);
+  var test05Grant3Expiry = new Date(test05Grant3Date);
+  test05Grant3Expiry.setFullYear(test05Grant3Expiry.getFullYear() + 2);
+  testGrants.push({
+    userId: 'TEST05',
+    grantDate: test05Grant3Date,
+    grantDays: 12,
+    expiryDate: test05Grant3Expiry,
+    remainingDays: 1, // ほぼ消費済み
+    grantType: '年次',
+    workYears: 2.5,
+    createdAt: test05Grant3Date
+  });
+
+  // TEST06: FIFO確認用（複数付与、段階的に消費）
+  // 1回目の付与（古い）
+  var test06Grant1Date = new Date(today.getFullYear() - 4, 8, 1);
+  var test06Grant1Expiry = new Date(test06Grant1Date);
+  test06Grant1Expiry.setFullYear(test06Grant1Expiry.getFullYear() + 2);
+  testGrants.push({
+    userId: 'TEST06',
+    grantDate: test06Grant1Date,
+    grantDays: 10,
+    expiryDate: test06Grant1Expiry,
+    remainingDays: 3, // 一部消費
+    grantType: '初回',
+    workYears: 0.5,
+    createdAt: test06Grant1Date
+  });
+
+  // 2回目の付与（1年後）
+  var test06Grant2Date = new Date(today.getFullYear() - 3, 8, 1);
+  var test06Grant2Expiry = new Date(test06Grant2Date);
+  test06Grant2Expiry.setFullYear(test06Grant2Expiry.getFullYear() + 2);
+  testGrants.push({
+    userId: 'TEST06',
+    grantDate: test06Grant2Date,
+    grantDays: 11,
+    expiryDate: test06Grant2Expiry,
+    remainingDays: 6, // 一部消費
+    grantType: '年次',
+    workYears: 1.5,
+    createdAt: test06Grant2Date
+  });
+
+  // 3回目の付与（2年後）
+  var test06Grant3Date = new Date(today.getFullYear() - 2, 8, 1);
+  var test06Grant3Expiry = new Date(test06Grant3Date);
+  test06Grant3Expiry.setFullYear(test06Grant3Expiry.getFullYear() + 2);
+  testGrants.push({
+    userId: 'TEST06',
+    grantDate: test06Grant3Date,
+    grantDays: 12,
+    expiryDate: test06Grant3Expiry,
+    remainingDays: 12, // 未消費
+    grantType: '年次',
+    workYears: 2.5,
+    createdAt: test06Grant3Date
+  });
+
+  // 4回目の付与（最新）
+  var test06Grant4Date = new Date(today.getFullYear() - 1, 8, 1);
+  var test06Grant4Expiry = new Date(test06Grant4Date);
+  test06Grant4Expiry.setFullYear(test06Grant4Expiry.getFullYear() + 2);
+  testGrants.push({
+    userId: 'TEST06',
+    grantDate: test06Grant4Date,
+    grantDays: 14,
+    expiryDate: test06Grant4Expiry,
+    remainingDays: 4, // 一部消費
+    grantType: '年次',
+    workYears: 3.5,
+    createdAt: test06Grant4Date
+  });
+  scenarios.push('TEST06: FIFO確認用（4回の付与、古い順に一部消費）');
+
+  // 失効予定のバリエーションを追加
+  // 1週間後に失効
+  var weekExpiry = new Date(today);
+  weekExpiry.setDate(weekExpiry.getDate() + 7);
+  var weekGrant = new Date(weekExpiry);
+  weekGrant.setFullYear(weekGrant.getFullYear() - 2);
+  testGrants.push({
+    userId: 'TEST04',
+    grantDate: weekGrant,
+    grantDays: 5,
+    expiryDate: weekExpiry,
+    remainingDays: 2,
+    grantType: '特別付与',
+    workYears: 2.0,
+    createdAt: weekGrant
+  });
+  scenarios.push('TEST04: 1週間後に失効予定（残2日）');
+
+  // 1ヶ月後に失効
+  var monthExpiry = new Date(today);
+  monthExpiry.setMonth(monthExpiry.getMonth() + 1);
+  var monthGrant = new Date(monthExpiry);
+  monthGrant.setFullYear(monthGrant.getFullYear() - 2);
+  testGrants.push({
+    userId: 'TEST05',
+    grantDate: monthGrant,
+    grantDays: 3,
+    expiryDate: monthExpiry,
+    remainingDays: 3,
+    grantType: '特別付与',
+    workYears: 2.5,
+    createdAt: monthGrant
+  });
+  scenarios.push('TEST05: 1ヶ月後に失効予定（残3日）');
+
+  // 3ヶ月後に失効
+  var threeMonthExpiry = new Date(today);
+  threeMonthExpiry.setMonth(threeMonthExpiry.getMonth() + 3);
+  var threeMonthGrant = new Date(threeMonthExpiry);
+  threeMonthGrant.setFullYear(threeMonthGrant.getFullYear() - 2);
+  testGrants.push({
+    userId: 'TEST06',
+    grantDate: threeMonthGrant,
+    grantDays: 5,
+    expiryDate: threeMonthExpiry,
+    remainingDays: 5,
+    grantType: '特別付与',
+    workYears: 3.0,
+    createdAt: threeMonthGrant
+  });
+  scenarios.push('TEST06: 3ヶ月後に失効予定（残5日）');
+
+  // データを投入
+  testGrants.forEach(function(grant) {
+    grantHistorySheet.appendRow([
+      grant.userId,
+      grant.grantDate,
+      grant.grantDays,
+      grant.expiryDate,
+      grant.remainingDays,
+      grant.grantType,
+      grant.workYears,
+      grant.createdAt
+    ]);
+  });
+
+  console.log('付与履歴シートにテストデータを追加:', testGrants.length + '件');
+
+  return {
+    count: testGrants.length,
+    scenarios: scenarios
+  };
+}
+
+/**
+ * マスターシートの残日数を更新（付与履歴から計算）
+ */
+function updateMasterRemainingDays(ss) {
+  var masterSheet = ss.getSheetByName('マスター');
+  var data = masterSheet.getDataRange().getValues();
+
+  var testUserIds = ['TEST01', 'TEST02', 'TEST03', 'TEST04', 'TEST05', 'TEST06'];
+
+  for (var i = 1; i < data.length; i++) {
+    var userId = String(data[i][0]);
+
+    if (testUserIds.indexOf(userId) !== -1) {
+      var remaining = calculateEffectiveRemainingDays(userId);
+      masterSheet.getRange(i + 1, 3).setValue(remaining);
+      console.log('残日数更新:', userId, remaining + '日');
+    }
+  }
+}
+
+// =============================
 // シートマニュアル機能
 // =============================
 

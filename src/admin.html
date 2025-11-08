@@ -1034,6 +1034,57 @@
       <div id="manualAddStatus" style="margin: 20px 0; padding: 15px; border-radius: 5px; display: none;"></div>
     </div>
 
+    <!-- テストデータ生成 -->
+    <div style="margin: 20px 0; padding: 20px; background: white; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h3 style="color: #FF9800; border-bottom: 2px solid #FF9800; padding-bottom: 10px;">テストデータ生成</h3>
+
+      <div style="background: #FFF3E0; padding: 15px; border-radius: 5px; margin: 15px 0;">
+        <h4 style="margin-top: 0; color: #E65100;">テスト用データの自動生成</h4>
+        <p style="margin: 10px 0; line-height: 1.6;">
+          付与管理・失効管理機能のテストに必要なデータを自動生成します。<br>
+          <strong>生成されるデータ：</strong>
+        </p>
+        <ul style="margin: 10px 0 10px 20px; line-height: 1.8;">
+          <li><strong>テストユーザー6名</strong>
+            <ul style="margin: 5px 0 5px 20px;">
+              <li>TEST01, TEST02: 6ヶ月付与対象者</li>
+              <li>TEST03: 年次付与対象者</li>
+              <li>TEST04: 失効間近データあり</li>
+              <li>TEST05: 失効済みデータあり</li>
+              <li>TEST06: FIFO確認用（複数付与履歴）</li>
+            </ul>
+          </li>
+          <li><strong>付与履歴データ</strong>（約15件）
+            <ul style="margin: 5px 0 5px 20px;">
+              <li>5日後、1週間後、1ヶ月後、3ヶ月後に失効予定</li>
+              <li>すでに失効済みのデータ</li>
+              <li>FIFO方式の確認用に複数回の付与</li>
+            </ul>
+          </li>
+        </ul>
+        <p style="margin: 10px 0; color: #D84315; font-weight: bold;">
+          ⚠ このデータはマスターシートと付与履歴シートに実際に追加されます。
+        </p>
+      </div>
+
+      <div style="margin: 20px 0;">
+        <button onclick="generateTest()"
+                style="padding: 12px 24px;
+                       background: #FF9800;
+                       color: white;
+                       border: none;
+                       border-radius: 5px;
+                       font-size: 16px;
+                       font-weight: bold;
+                       cursor: pointer;
+                       box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+          テストデータを生成
+        </button>
+      </div>
+
+      <div id="generateTestStatus" style="margin: 20px 0; padding: 15px; border-radius: 5px; display: none;"></div>
+    </div>
+
     <!-- その他のシステム設定 -->
     <div style="margin: 20px 0; padding: 20px; background: white; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
       <h3 style="color: #666; border-bottom: 2px solid #999; padding-bottom: 10px;">システム情報</h3>
@@ -1729,6 +1780,64 @@
           statusDiv.innerHTML = '<strong>システムエラー:</strong> ' + error.message;
         })
         .addSheetManuals();
+    }
+
+    function generateTest() {
+      if (!confirm('テストデータを生成しますか？\n\n6名のテストユーザーと約15件の付与履歴データがマスターシートと付与履歴シートに追加されます。')) {
+        return;
+      }
+
+      var statusDiv = document.getElementById('generateTestStatus');
+      statusDiv.style.display = 'block';
+      statusDiv.style.background = '#fff3cd';
+      statusDiv.style.border = '1px solid #ffeaa7';
+      statusDiv.style.color = '#856404';
+      statusDiv.innerHTML = '<strong>処理中...</strong> テストデータを生成しています。しばらくお待ちください。';
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          console.log('テストデータ生成結果:', result);
+
+          if (result.success) {
+            statusDiv.style.background = '#d4edda';
+            statusDiv.style.border = '1px solid #c3e6cb';
+            statusDiv.style.color = '#155724';
+
+            var detailHtml = '<strong>完了!</strong> ' + result.message + '<br><br>';
+            detailHtml += '<div style="margin-top: 10px; padding: 10px; background: #E8F5E9; border-radius: 3px;">';
+            detailHtml += '<strong>生成されたデータ:</strong><ul style="margin: 10px 0;">';
+            detailHtml += '<li>テストユーザー: ' + result.details.masterUsers + '名</li>';
+            detailHtml += '<li>付与履歴レコード: ' + result.details.grantRecords + '件</li>';
+            detailHtml += '</ul>';
+
+            if (result.details.scenarios && result.details.scenarios.length > 0) {
+              detailHtml += '<strong>テストシナリオ:</strong><ul style="margin: 10px 0;">';
+              result.details.scenarios.forEach(function(scenario) {
+                detailHtml += '<li>' + scenario + '</li>';
+              });
+              detailHtml += '</ul>';
+            }
+
+            detailHtml += '</div>';
+            detailHtml += '<p style="margin-top: 10px; color: #E65100;">スプレッドシートでテストデータを確認してください。</p>';
+            detailHtml += '<p style="margin-top: 5px; color: #1976D2;">「付与管理」タブと「失効管理」タブで機能をテストできます。</p>';
+
+            statusDiv.innerHTML = detailHtml;
+          } else {
+            statusDiv.style.background = '#f8d7da';
+            statusDiv.style.border = '1px solid #f5c6cb';
+            statusDiv.style.color = '#721c24';
+            statusDiv.innerHTML = '<strong>エラー:</strong> ' + result.message;
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('テストデータ生成エラー:', error);
+          statusDiv.style.background = '#f8d7da';
+          statusDiv.style.border = '1px solid #f5c6cb';
+          statusDiv.style.color = '#721c24';
+          statusDiv.innerHTML = '<strong>システムエラー:</strong> ' + error.message;
+        })
+        .generateTestData();
     }
 
     // タブ切り替え機能を拡張
