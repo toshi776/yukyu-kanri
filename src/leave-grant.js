@@ -459,7 +459,7 @@ function getRecentGrantHistory(limit) {
         remainingDays: row[4],
         grantType: row[5],
         workYears: row[6],
-        createdAt: row[7]
+        createdAt: formatDate(row[7])
       });
     }
 
@@ -919,13 +919,17 @@ function getSixMonthGrantTargets() {
       // 今日が6ヶ月後以降かチェック
       if (today >= sixMonthDate) {
         var weeklyWorkDays = Number(weeklyWorkDaysStr) || 5; // デフォルト5日
-        
+        var grantDays = calculateInitialLeaveDays(weeklyWorkDays);
+        var daysFromHire = Math.floor((today - hireDate) / (1000 * 60 * 60 * 24));
+
         targets.push({
           userId: userId,
-          name: name,
+          userName: name,  // nameではなくuserName
           hireDate: formatDate(hireDate),
           sixMonthDate: formatDate(sixMonthDate),
-          weeklyWorkDays: weeklyWorkDays
+          weeklyWorkDays: weeklyWorkDays,
+          grantDays: grantDays,
+          daysFromHire: daysFromHire
         });
 
         console.log('6ヶ月付与対象:', userId, name, '6ヶ月経過日:' + Utilities.formatDate(sixMonthDate, 'JST', 'yyyy/MM/dd'));
@@ -1368,15 +1372,18 @@ function getAnnualGrantTargets() {
 
       // 次回付与日が今日以前の場合、付与対象
       if (nextGrantDate <= today) {
+        var grantDays = calculateAnnualLeaveDays(Math.floor(workYears), weeklyWorkDays);
+
         targets.push({
           userId: userId,
-          name: name,
+          userName: name,  // nameではなくuserName
           hireDate: formatDate(hireDate),
           initialGrantDate: formatDate(initialGrantDate),
           latestAnnualGrantDate: latestAnnualGrantDateStr ? formatDate(new Date(latestAnnualGrantDateStr)) : null,
-          workYears: workYears,
+          workYears: Math.floor(workYears),  // 整数に丸める
           weeklyWorkDays: weeklyWorkDays,
-          nextGrantDate: formatDate(nextGrantDate)
+          nextGrantDate: formatDate(nextGrantDate),
+          grantDays: grantDays
         });
 
         console.log('年次付与対象:', userId, name, '次回付与日:' + Utilities.formatDate(nextGrantDate, 'JST', 'yyyy/MM/dd'));
