@@ -417,6 +417,83 @@ function getUserGrantHistory(userId) {
 }
 
 /**
+ * 最近の付与履歴を取得（管理画面用）
+ * @param {number} limit - 取得件数（デフォルト: 50）
+ * @return {Array} 付与履歴
+ */
+function getRecentGrantHistory(limit) {
+  try {
+    limit = limit || 50;
+
+    var ss = getSpreadsheet();
+    var grantHistorySheet = getOrCreateGrantHistorySheet(ss);
+    var masterSheet = ss.getSheetByName('マスター');
+
+    var data = grantHistorySheet.getDataRange().getValues();
+    var history = [];
+
+    // マスターシートから利用者名を取得するためのマップを作成
+    var userNameMap = {};
+    if (masterSheet) {
+      var masterData = masterSheet.getDataRange().getValues();
+      for (var i = 1; i < masterData.length; i++) {
+        var userId = String(masterData[i][0]);
+        var userName = String(masterData[i][1] || '');
+        if (userId) {
+          userNameMap[userId] = userName;
+        }
+      }
+    }
+
+    // ヘッダー行をスキップして処理
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var userId = String(row[0]);
+
+      history.push({
+        userId: userId,
+        userName: userNameMap[userId] || '-',
+        grantDate: formatDate(row[1]),
+        grantDays: row[2],
+        expiryDate: formatDate(row[3]),
+        remainingDays: row[4],
+        grantType: row[5],
+        workYears: row[6],
+        createdAt: row[7]
+      });
+    }
+
+    // 付与日の降順でソート（新しいものが上）
+    history.sort(function(a, b) {
+      return new Date(b.grantDate) - new Date(a.grantDate);
+    });
+
+    // 上位limit件のみ返す
+    return history.slice(0, limit);
+
+  } catch (error) {
+    console.error('最近の付与履歴取得エラー:', error);
+    return [];
+  }
+}
+
+/**
+ * 日付をYYYY/MM/DD形式にフォーマット
+ */
+function formatDate(date) {
+  if (!date) return '-';
+
+  var d = new Date(date);
+  if (isNaN(d.getTime())) return '-';
+
+  var year = d.getFullYear();
+  var month = ('0' + (d.getMonth() + 1)).slice(-2);
+  var day = ('0' + d.getDate()).slice(-2);
+
+  return year + '/' + month + '/' + day;
+}
+
+/**
  * FIFO方式で有給を消費
  * @param {string} userId - 利用者番号
  * @param {number} useDays - 使用日数

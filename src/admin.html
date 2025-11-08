@@ -274,6 +274,7 @@
     <button class="tab-button" onclick="showTab('applications')">申請承認</button>
     <button class="tab-button" onclick="showTab('url-management')">URL管理</button>
     <button class="tab-button" onclick="showTab('statistics')">統計レポート</button>
+    <button class="tab-button" onclick="showTab('grant-management')">付与管理</button>
   </div>
   
   <!-- 利用者一覧タブ -->
@@ -948,6 +949,86 @@
     </div>
   </div>
 
+  <!-- 付与管理タブ -->
+  <div id="grant-managementTab" class="tab-content">
+    <h2>付与管理</h2>
+
+    <!-- 6ヶ月付与管理 -->
+    <div style="margin: 20px 0; padding: 20px; background: white; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h3 style="color: #4CAF50; border-bottom: 2px solid #4CAF50; padding-bottom: 10px;">6ヶ月付与管理</h3>
+      <p style="color: #666; margin: 15px 0;">入社6ヶ月経過後の自動付与処理を管理します。</p>
+
+      <div class="controls">
+        <button onclick="checkSixMonthTargets()" style="background: #2196F3; color: white; padding: 10px 20px; border: none; border-radius: 5px; margin-right: 10px;">
+          対象者確認
+        </button>
+        <button onclick="executeSixMonthGrants()" style="background: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 5px;">
+          手動実行
+        </button>
+      </div>
+
+      <div id="sixMonthGrantStatus" style="margin: 20px 0; padding: 15px; border-radius: 5px; display: none;"></div>
+
+      <div id="sixMonthTargetsContainer" style="display: none;">
+        <h4 style="margin: 20px 0 10px 0;">対象者リスト</h4>
+        <div id="sixMonthTargetsList"></div>
+      </div>
+    </div>
+
+    <!-- 年次付与管理 -->
+    <div style="margin: 20px 0; padding: 20px; background: white; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h3 style="color: #FF9800; border-bottom: 2px solid #FF9800; padding-bottom: 10px;">年次付与管理（4月1日一括処理）</h3>
+      <p style="color: #666; margin: 15px 0;">毎年4月1日の自動付与処理を管理します。</p>
+
+      <div class="controls">
+        <button onclick="checkAnnualTargets()" style="background: #2196F3; color: white; padding: 10px 20px; border: none; border-radius: 5px; margin-right: 10px;">
+          対象者確認
+        </button>
+        <button onclick="executeAnnualGrants()" style="background: #FF9800; color: white; padding: 10px 20px; border: none; border-radius: 5px;">
+          手動実行
+        </button>
+      </div>
+
+      <div id="annualGrantStatus" style="margin: 20px 0; padding: 15px; border-radius: 5px; display: none;"></div>
+
+      <div id="annualTargetsContainer" style="display: none;">
+        <h4 style="margin: 20px 0 10px 0;">対象者リスト</h4>
+        <div id="annualTargetsList"></div>
+      </div>
+    </div>
+
+    <!-- 付与履歴 -->
+    <div style="margin: 20px 0; padding: 20px; background: white; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h3 style="color: #9C27B0; border-bottom: 2px solid #9C27B0; padding-bottom: 10px;">付与履歴</h3>
+      <p style="color: #666; margin: 15px 0;">直近の付与履歴を表示します。</p>
+
+      <div class="controls">
+        <button onclick="loadGrantHistory()" style="background: #9C27B0; color: white; padding: 10px 20px; border: none; border-radius: 5px;">
+          履歴読み込み
+        </button>
+      </div>
+
+      <div id="grantHistoryStatus" style="margin: 20px 0; padding: 15px; border-radius: 5px; display: none;"></div>
+
+      <div id="grantHistoryContainer" style="display: none; margin-top: 20px;">
+        <table id="grantHistoryTable" style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="background: #9C27B0; color: white;">
+              <th style="padding: 10px; border: 1px solid #ddd;">付与日</th>
+              <th style="padding: 10px; border: 1px solid #ddd;">利用者ID</th>
+              <th style="padding: 10px; border: 1px solid #ddd;">利用者名</th>
+              <th style="padding: 10px; border: 1px solid #ddd;">付与日数</th>
+              <th style="padding: 10px; border: 1px solid #ddd;">付与種別</th>
+              <th style="padding: 10px; border: 1px solid #ddd;">勤続年数</th>
+            </tr>
+          </thead>
+          <tbody id="grantHistoryTableBody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <script>
     // URL管理機能のJavaScript
     
@@ -1230,6 +1311,290 @@
       }
     }
 
+    // =============================
+    // 付与管理機能のJavaScript
+    // =============================
+
+    function checkSixMonthTargets() {
+      var statusDiv = document.getElementById('sixMonthGrantStatus');
+      statusDiv.style.display = 'block';
+      statusDiv.style.background = '#fff3cd';
+      statusDiv.style.border = '1px solid #ffeaa7';
+      statusDiv.style.color = '#856404';
+      statusDiv.innerHTML = '<strong>処理中...</strong> 6ヶ月付与対象者を確認しています。';
+
+      document.getElementById('sixMonthTargetsContainer').style.display = 'none';
+
+      google.script.run
+        .withSuccessHandler(function(targets) {
+          console.log('6ヶ月付与対象者:', targets);
+
+          if (targets && targets.length > 0) {
+            statusDiv.style.background = '#d4edda';
+            statusDiv.style.border = '1px solid #c3e6cb';
+            statusDiv.style.color = '#155724';
+            statusDiv.innerHTML = '<strong>完了!</strong> ' + targets.length + '名の対象者が見つかりました。';
+
+            displaySixMonthTargets(targets);
+          } else {
+            statusDiv.style.background = '#d1ecf1';
+            statusDiv.style.border = '1px solid #bee5eb';
+            statusDiv.style.color = '#0c5460';
+            statusDiv.innerHTML = '<strong>対象者なし</strong> 現在6ヶ月付与の対象者はいません。';
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('6ヶ月付与対象者確認エラー:', error);
+          statusDiv.style.background = '#f8d7da';
+          statusDiv.style.border = '1px solid #f5c6cb';
+          statusDiv.style.color = '#721c24';
+          statusDiv.innerHTML = '<strong>システムエラー:</strong> ' + error.message;
+        })
+        .getSixMonthGrantTargets();
+    }
+
+    function displaySixMonthTargets(targets) {
+      var container = document.getElementById('sixMonthTargetsContainer');
+      container.style.display = 'block';
+
+      var html = '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+      html += '<thead><tr style="background: #4CAF50; color: white;">';
+      html += '<th style="padding: 10px; border: 1px solid #ddd;">利用者ID</th>';
+      html += '<th style="padding: 10px; border: 1px solid #ddd;">利用者名</th>';
+      html += '<th style="padding: 10px; border: 1px solid #ddd;">入社日</th>';
+      html += '<th style="padding: 10px; border: 1px solid #ddd;">経過日数</th>';
+      html += '<th style="padding: 10px; border: 1px solid #ddd;">付与日数</th>';
+      html += '</tr></thead><tbody>';
+
+      targets.forEach(function(target) {
+        html += '<tr style="background: white;">';
+        html += '<td style="padding: 10px; border: 1px solid #ddd;">' + (target.userId || '-') + '</td>';
+        html += '<td style="padding: 10px; border: 1px solid #ddd;">' + (target.userName || '-') + '</td>';
+        html += '<td style="padding: 10px; border: 1px solid #ddd;">' + (target.hireDate || '-') + '</td>';
+        html += '<td style="padding: 10px; border: 1px solid #ddd;">' + (target.daysFromHire || '-') + '日</td>';
+        html += '<td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; color: #4CAF50;">' + (target.grantDays || '-') + '日</td>';
+        html += '</tr>';
+      });
+
+      html += '</tbody></table>';
+      document.getElementById('sixMonthTargetsList').innerHTML = html;
+    }
+
+    function executeSixMonthGrants() {
+      if (!confirm('6ヶ月付与処理を実行しますか？\n\n対象者全員に有給が付与されます。')) {
+        return;
+      }
+
+      var statusDiv = document.getElementById('sixMonthGrantStatus');
+      statusDiv.style.display = 'block';
+      statusDiv.style.background = '#fff3cd';
+      statusDiv.style.border = '1px solid #ffeaa7';
+      statusDiv.style.color = '#856404';
+      statusDiv.innerHTML = '<strong>処理中...</strong> 6ヶ月付与処理を実行しています。しばらくお待ちください。';
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          console.log('6ヶ月付与実行結果:', result);
+
+          if (result.success) {
+            statusDiv.style.background = '#d4edda';
+            statusDiv.style.border = '1px solid #c3e6cb';
+            statusDiv.style.color = '#155724';
+            statusDiv.innerHTML = '<strong>完了!</strong> ' + result.message;
+
+            // 対象者リストを再読み込み
+            setTimeout(function() {
+              checkSixMonthTargets();
+            }, 2000);
+          } else {
+            statusDiv.style.background = '#f8d7da';
+            statusDiv.style.border = '1px solid #f5c6cb';
+            statusDiv.style.color = '#721c24';
+            statusDiv.innerHTML = '<strong>エラー:</strong> ' + result.message;
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('6ヶ月付与実行エラー:', error);
+          statusDiv.style.background = '#f8d7da';
+          statusDiv.style.border = '1px solid #f5c6cb';
+          statusDiv.style.color = '#721c24';
+          statusDiv.innerHTML = '<strong>システムエラー:</strong> ' + error.message;
+        })
+        .processSixMonthGrants();
+    }
+
+    function checkAnnualTargets() {
+      var statusDiv = document.getElementById('annualGrantStatus');
+      statusDiv.style.display = 'block';
+      statusDiv.style.background = '#fff3cd';
+      statusDiv.style.border = '1px solid #ffeaa7';
+      statusDiv.style.color = '#856404';
+      statusDiv.innerHTML = '<strong>処理中...</strong> 年次付与対象者を確認しています。';
+
+      document.getElementById('annualTargetsContainer').style.display = 'none';
+
+      google.script.run
+        .withSuccessHandler(function(targets) {
+          console.log('年次付与対象者:', targets);
+
+          if (targets && targets.length > 0) {
+            statusDiv.style.background = '#d4edda';
+            statusDiv.style.border = '1px solid #c3e6cb';
+            statusDiv.style.color = '#155724';
+            statusDiv.innerHTML = '<strong>完了!</strong> ' + targets.length + '名の対象者が見つかりました。';
+
+            displayAnnualTargets(targets);
+          } else {
+            statusDiv.style.background = '#d1ecf1';
+            statusDiv.style.border = '1px solid #bee5eb';
+            statusDiv.style.color = '#0c5460';
+            statusDiv.innerHTML = '<strong>対象者なし</strong> 現在年次付与の対象者はいません。';
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('年次付与対象者確認エラー:', error);
+          statusDiv.style.background = '#f8d7da';
+          statusDiv.style.border = '1px solid #f5c6cb';
+          statusDiv.style.color = '#721c24';
+          statusDiv.innerHTML = '<strong>システムエラー:</strong> ' + error.message;
+        })
+        .getAnnualGrantTargets();
+    }
+
+    function displayAnnualTargets(targets) {
+      var container = document.getElementById('annualTargetsContainer');
+      container.style.display = 'block';
+
+      var html = '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+      html += '<thead><tr style="background: #FF9800; color: white;">';
+      html += '<th style="padding: 10px; border: 1px solid #ddd;">利用者ID</th>';
+      html += '<th style="padding: 10px; border: 1px solid #ddd;">利用者名</th>';
+      html += '<th style="padding: 10px; border: 1px solid #ddd;">入社日</th>';
+      html += '<th style="padding: 10px; border: 1px solid #ddd;">勤続年数</th>';
+      html += '<th style="padding: 10px; border: 1px solid #ddd;">付与日数</th>';
+      html += '</tr></thead><tbody>';
+
+      targets.forEach(function(target) {
+        html += '<tr style="background: white;">';
+        html += '<td style="padding: 10px; border: 1px solid #ddd;">' + (target.userId || '-') + '</td>';
+        html += '<td style="padding: 10px; border: 1px solid #ddd;">' + (target.userName || '-') + '</td>';
+        html += '<td style="padding: 10px; border: 1px solid #ddd;">' + (target.hireDate || '-') + '</td>';
+        html += '<td style="padding: 10px; border: 1px solid #ddd;">' + (target.workYears || '-') + '年</td>';
+        html += '<td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; color: #FF9800;">' + (target.grantDays || '-') + '日</td>';
+        html += '</tr>';
+      });
+
+      html += '</tbody></table>';
+      document.getElementById('annualTargetsList').innerHTML = html;
+    }
+
+    function executeAnnualGrants() {
+      if (!confirm('年次付与処理を実行しますか？\n\n対象者全員に有給が付与されます。')) {
+        return;
+      }
+
+      var statusDiv = document.getElementById('annualGrantStatus');
+      statusDiv.style.display = 'block';
+      statusDiv.style.background = '#fff3cd';
+      statusDiv.style.border = '1px solid #ffeaa7';
+      statusDiv.style.color = '#856404';
+      statusDiv.innerHTML = '<strong>処理中...</strong> 年次付与処理を実行しています。しばらくお待ちください。';
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          console.log('年次付与実行結果:', result);
+
+          if (result.success) {
+            statusDiv.style.background = '#d4edda';
+            statusDiv.style.border = '1px solid #c3e6cb';
+            statusDiv.style.color = '#155724';
+            statusDiv.innerHTML = '<strong>完了!</strong> ' + result.message;
+
+            // 対象者リストを再読み込み
+            setTimeout(function() {
+              checkAnnualTargets();
+            }, 2000);
+          } else {
+            statusDiv.style.background = '#f8d7da';
+            statusDiv.style.border = '1px solid #f5c6cb';
+            statusDiv.style.color = '#721c24';
+            statusDiv.innerHTML = '<strong>エラー:</strong> ' + result.message;
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('年次付与実行エラー:', error);
+          statusDiv.style.background = '#f8d7da';
+          statusDiv.style.border = '1px solid #f5c6cb';
+          statusDiv.style.color = '#721c24';
+          statusDiv.innerHTML = '<strong>システムエラー:</strong> ' + error.message;
+        })
+        .processAnnualGrants();
+    }
+
+    function loadGrantHistory() {
+      var statusDiv = document.getElementById('grantHistoryStatus');
+      statusDiv.style.display = 'block';
+      statusDiv.style.background = '#fff3cd';
+      statusDiv.style.border = '1px solid #ffeaa7';
+      statusDiv.style.color = '#856404';
+      statusDiv.innerHTML = '<strong>処理中...</strong> 付与履歴を読み込んでいます。';
+
+      document.getElementById('grantHistoryContainer').style.display = 'none';
+
+      google.script.run
+        .withSuccessHandler(function(history) {
+          console.log('付与履歴:', history);
+
+          if (history && history.length > 0) {
+            statusDiv.style.background = '#d4edda';
+            statusDiv.style.border = '1px solid #c3e6cb';
+            statusDiv.style.color = '#155724';
+            statusDiv.innerHTML = '<strong>完了!</strong> ' + history.length + '件の履歴を読み込みました。';
+
+            displayGrantHistory(history);
+          } else {
+            statusDiv.style.background = '#d1ecf1';
+            statusDiv.style.border = '1px solid #bee5eb';
+            statusDiv.style.color = '#0c5460';
+            statusDiv.innerHTML = '<strong>履歴なし</strong> 付与履歴が見つかりませんでした。';
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('付与履歴読み込みエラー:', error);
+          statusDiv.style.background = '#f8d7da';
+          statusDiv.style.border = '1px solid #f5c6cb';
+          statusDiv.style.color = '#721c24';
+          statusDiv.innerHTML = '<strong>システムエラー:</strong> ' + error.message;
+        })
+        .getRecentGrantHistory();
+    }
+
+    function displayGrantHistory(history) {
+      var container = document.getElementById('grantHistoryContainer');
+      container.style.display = 'block';
+
+      var tbody = document.getElementById('grantHistoryTableBody');
+      tbody.innerHTML = '';
+
+      history.forEach(function(record) {
+        var row = tbody.insertRow();
+        row.style.background = 'white';
+
+        row.insertCell(0).textContent = record.grantDate || '-';
+        row.insertCell(1).textContent = record.userId || '-';
+        row.insertCell(2).textContent = record.userName || '-';
+        row.insertCell(3).textContent = (record.grantDays || 0) + '日';
+        row.insertCell(4).textContent = record.grantType || '-';
+        row.insertCell(5).textContent = (record.workYears || '-') + '年';
+
+        // セルにスタイルを適用
+        for (var i = 0; i < row.cells.length; i++) {
+          row.cells[i].style.padding = '10px';
+          row.cells[i].style.border = '1px solid #ddd';
+        }
+      });
+    }
+
     // タブ切り替え機能を拡張
     function showTab(tabName) {
       // 既存のタブ切り替え処理
@@ -1267,6 +1632,12 @@
       if (tabName === 'statistics') {
         console.log('📊 統計レポートタブが選択されました');
         initializeReportTab();
+      }
+
+      // 付与管理タブが選択された場合の初期化
+      if (tabName === 'grant-management') {
+        console.log('🎁 付与管理タブが選択されました');
+        // 必要に応じて初期データロード
       }
     }
   </script>

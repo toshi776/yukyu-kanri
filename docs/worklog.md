@@ -2,6 +2,111 @@
 
 ---
 
+## 2025-11-08: Phase 4実装（管理機能の拡張）- 統計レポート機能 ✅
+
+### 背景
+Phase 4（残り5%）として、管理画面に統計レポート機能、付与管理機能、失効管理機能を追加することになった。まずは最優先の統計レポート機能を実装。
+
+### 実装内容
+
+#### 1. 統計レポートタブの追加 ✅
+
+**管理画面（admin.html）への追加:**
+
+1. **タブボタンの追加**
+   - 「統計レポート」タブを4番目のタブとして追加
+   - 他のタブ（利用者一覧、申請承認、URL管理）と同じデザイン
+
+2. **HTMLコンテンツの追加**
+   - 年月選択コントロール（過去3年～未来1年）
+   - レポート生成ボタン
+   - 5つの統計セクション:
+     - 基本統計（総利用者数、総残日数、平均残日数、残5日以下、残0日）
+     - 申請統計（総申請件数、承認済み、承認待ち、却下、総消費日数）
+     - 付与統計（付与件数、付与日数合計）
+     - 年5日取得義務統計（義務対象者、達成者、未達成者）
+     - 未達成者リスト（テーブル形式）
+
+3. **JavaScript機能の実装**
+   - `initializeReportTab()`: 年月セレクトボックスの初期化
+   - `generateReport()`: レポート生成処理
+   - `displayReport(reportData)`: レポート表示処理
+   - `showTab('statistics')`: タブ選択時の初期化処理
+
+**バックエンド（statistics-report.js）の修正:**
+
+4. **年5日取得義務統計の追加**
+   - `generateMonthlyReport()`関数に年5日取得義務統計を追加
+   - 年度単位（4月～翌年3月）での集計
+   - admin.html側で使いやすいフォーマットに変換:
+     ```javascript
+     fiveDayObligationStatsFormatted = {
+       targetCount: 義務対象者数,
+       achievedCount: 達成者数,
+       notAchievedCount: 未達成者数,
+       notAchievedUsers: [
+         { userId, userName, usedDays }
+       ]
+     }
+     ```
+
+### 実装のポイント
+
+**1. 年度の自動判定**
+```javascript
+var fiscalYearStart = year;
+if (month < 4) {
+  fiscalYearStart = year - 1;
+}
+```
+- 1～3月の場合は前年度として扱う
+- 例: 2025年2月 → 2024年度（2024/4/1～2025/3/31）
+
+**2. 未達成者の抽出とフォーマット**
+```javascript
+notAchievedUsers: fiveDayObligationStats.details.filter(function(detail) {
+  return !detail.isCompliant;
+}).map(function(detail) {
+  return {
+    userId: detail.userId,
+    userName: detail.userName,
+    usedDays: detail.takenDays
+  };
+})
+```
+
+**3. レスポンシブな統計表示**
+- 既存の`.stats`クラスを再利用
+- カラフルなセクション分け（緑、青、オレンジ、赤）
+- 数値の強調表示
+
+### デプロイ
+
+**デプロイバージョン:** v32
+
+**変更ファイル:**
+- `CLAUDE.md`: リソース制限対策のガイドラインを追加
+- `src/admin.html`: 統計レポートタブとJavaScript機能を追加（+324行）
+- `src/statistics-report.js`: 年5日取得義務統計を`generateMonthlyReport()`に追加
+
+**デプロイ日時:** 2025-11-08 09:17:15
+
+### 成果
+
+- ✅ 統計レポートタブの追加完了
+- ✅ 5つの統計セクションの表示機能
+- ✅ 年5日取得義務監視機能（年度単位）
+- ✅ 未達成者リストの表示
+- ✅ v32のデプロイ成功
+
+### 次の作業
+
+Phase 4の残りの機能を実装：
+1. 付与管理機能の管理画面統合
+2. 失効管理機能の管理画面統合
+
+---
+
 ## 2025-11-08: 個人ページのUI/UX改善と機能追加
 
 ### 背景
