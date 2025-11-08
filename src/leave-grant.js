@@ -923,17 +923,22 @@ function getSixMonthGrantTargets() {
         targets.push({
           userId: userId,
           name: name,
-          hireDate: hireDate,
-          sixMonthDate: sixMonthDate,
+          hireDate: formatDate(hireDate),
+          sixMonthDate: formatDate(sixMonthDate),
           weeklyWorkDays: weeklyWorkDays
         });
-        
+
         console.log('6ヶ月付与対象:', userId, name, '6ヶ月経過日:' + Utilities.formatDate(sixMonthDate, 'JST', 'yyyy/MM/dd'));
       }
     }
-    
+
+    console.log('=== getSixMonthGrantTargets() 返り値 ===');
+    console.log('targets配列の長さ:', targets.length);
+    console.log('targets配列の内容:', JSON.stringify(targets));
+    console.log('返り値のtargets:', targets);
+
     return targets;
-    
+
   } catch (error) {
     console.error('6ヶ月付与対象者抽出エラー:', error);
     console.error('エラー詳細:', error.message);
@@ -1366,12 +1371,12 @@ function getAnnualGrantTargets() {
         targets.push({
           userId: userId,
           name: name,
-          hireDate: hireDate,
-          initialGrantDate: initialGrantDate,
-          latestAnnualGrantDate: latestAnnualGrantDateStr ? new Date(latestAnnualGrantDateStr) : null,
+          hireDate: formatDate(hireDate),
+          initialGrantDate: formatDate(initialGrantDate),
+          latestAnnualGrantDate: latestAnnualGrantDateStr ? formatDate(new Date(latestAnnualGrantDateStr)) : null,
           workYears: workYears,
           weeklyWorkDays: weeklyWorkDays,
-          nextGrantDate: nextGrantDate
+          nextGrantDate: formatDate(nextGrantDate)
         });
 
         console.log('年次付与対象:', userId, name, '次回付与日:' + Utilities.formatDate(nextGrantDate, 'JST', 'yyyy/MM/dd'));
