@@ -48,7 +48,32 @@ function generateMonthlyReport(year, month) {
     
     // 事業所別統計データ
     var divisionStats = calculateDivisionStatistics(reportDate, nextMonth);
-    
+
+    // 年5日取得義務統計（4月～翌年3月の年度単位）
+    var fiscalYearStart = year;
+    if (month < 4) {
+      fiscalYearStart = year - 1;
+    }
+    var obligationStartDate = new Date(fiscalYearStart, 3, 1); // 4月1日
+    var obligationEndDate = new Date(fiscalYearStart + 1, 2, 31); // 翌年3月31日
+    var fiveDayObligationStats = calculateFiveDayObligationStats(obligationStartDate, obligationEndDate);
+
+    // admin.html側で使用しやすいフォーマットに変換
+    var fiveDayObligationStatsFormatted = {
+      targetCount: fiveDayObligationStats.targetEmployees,
+      achievedCount: fiveDayObligationStats.compliantEmployees,
+      notAchievedCount: fiveDayObligationStats.targetEmployees - fiveDayObligationStats.compliantEmployees,
+      notAchievedUsers: fiveDayObligationStats.details.filter(function(detail) {
+        return !detail.isCompliant;
+      }).map(function(detail) {
+        return {
+          userId: detail.userId,
+          userName: detail.userName,
+          usedDays: detail.takenDays
+        };
+      })
+    };
+
     var reportData = {
       reportType: 'MONTHLY',
       period: {
@@ -61,7 +86,8 @@ function generateMonthlyReport(year, month) {
       applicationStatistics: applicationStats,
       grantStatistics: grantStats,
       usageStatistics: usageStats,
-      divisionStatistics: divisionStats
+      divisionStatistics: divisionStats,
+      fiveDayObligationStats: fiveDayObligationStatsFormatted
     };
     
     console.log('月次レポート生成完了');

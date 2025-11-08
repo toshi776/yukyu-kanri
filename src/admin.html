@@ -273,6 +273,7 @@
     <button class="tab-button active" onclick="showTab('employees')">利用者一覧</button>
     <button class="tab-button" onclick="showTab('applications')">申請承認</button>
     <button class="tab-button" onclick="showTab('url-management')">URL管理</button>
+    <button class="tab-button" onclick="showTab('statistics')">統計レポート</button>
   </div>
   
   <!-- 利用者一覧タブ -->
@@ -820,6 +821,133 @@
     </div>
   </div>
 
+  <!-- 統計レポートタブ -->
+  <div id="statisticsTab" class="tab-content">
+    <h2>統計レポート</h2>
+
+    <!-- レポート生成コントロール -->
+    <div class="controls">
+      <label>対象年月：</label>
+      <select id="reportYear" style="width: 100px;">
+        <!-- JavaScriptで動的に生成 -->
+      </select>
+      <select id="reportMonth" style="width: 80px;">
+        <option value="1">1月</option>
+        <option value="2">2月</option>
+        <option value="3">3月</option>
+        <option value="4">4月</option>
+        <option value="5">5月</option>
+        <option value="6">6月</option>
+        <option value="7">7月</option>
+        <option value="8">8月</option>
+        <option value="9">9月</option>
+        <option value="10">10月</option>
+        <option value="11">11月</option>
+        <option value="12">12月</option>
+      </select>
+      <button onclick="generateReport()" style="background: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 5px; margin-left: 10px;">
+        レポート生成
+      </button>
+    </div>
+
+    <!-- レポート生成状態表示 -->
+    <div id="reportStatus" style="margin: 20px 0; padding: 15px; border-radius: 5px; display: none;"></div>
+
+    <!-- レポート表示エリア -->
+    <div id="reportContainer" style="display: none;">
+      <!-- 基本統計 -->
+      <div style="margin: 20px 0; padding: 20px; background: white; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h3 style="color: #4CAF50; border-bottom: 2px solid #4CAF50; padding-bottom: 10px;">基本統計</h3>
+        <div class="stats" style="margin-top: 20px;">
+          <div class="stat-item">
+            <div class="stat-value" id="reportTotalEmployees">-</div>
+            <div class="stat-label">総利用者数</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="reportTotalRemaining">-</div>
+            <div class="stat-label">総残日数</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="reportAvgRemaining">-</div>
+            <div class="stat-label">平均残日数</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="reportLowRemaining">-</div>
+            <div class="stat-label">残5日以下</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="reportZeroRemaining">-</div>
+            <div class="stat-label">残0日</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 申請統計 -->
+      <div style="margin: 20px 0; padding: 20px; background: white; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h3 style="color: #2196F3; border-bottom: 2px solid #2196F3; padding-bottom: 10px;">申請統計（対象月）</h3>
+        <div class="stats" style="margin-top: 20px;">
+          <div class="stat-item">
+            <div class="stat-value" id="reportTotalApplications">-</div>
+            <div class="stat-label">総申請件数</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="reportApprovedApplications">-</div>
+            <div class="stat-label">承認済み</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="reportPendingApplications">-</div>
+            <div class="stat-label">承認待ち</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="reportRejectedApplications">-</div>
+            <div class="stat-label">却下</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="reportTotalDays">-</div>
+            <div class="stat-label">総消費日数</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 付与統計 -->
+      <div style="margin: 20px 0; padding: 20px; background: white; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h3 style="color: #FF9800; border-bottom: 2px solid #FF9800; padding-bottom: 10px;">付与統計（対象月）</h3>
+        <div class="stats" style="margin-top: 20px;">
+          <div class="stat-item">
+            <div class="stat-value" id="reportTotalGrants">-</div>
+            <div class="stat-label">付与件数</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="reportGrantedDays">-</div>
+            <div class="stat-label">付与日数合計</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 年5日取得義務統計 -->
+      <div style="margin: 20px 0; padding: 20px; background: white; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h3 style="color: #f44336; border-bottom: 2px solid #f44336; padding-bottom: 10px;">年5日取得義務監視</h3>
+        <div class="stats" style="margin-top: 20px;">
+          <div class="stat-item">
+            <div class="stat-value" id="reportObligationTargets">-</div>
+            <div class="stat-label">義務対象者</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="reportObligationAchieved">-</div>
+            <div class="stat-label">達成者</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="reportObligationNotAchieved">-</div>
+            <div class="stat-label">未達成者</div>
+          </div>
+        </div>
+
+        <!-- 未達成者リスト -->
+        <div id="obligationNotAchievedList" style="margin-top: 20px;"></div>
+      </div>
+    </div>
+  </div>
+
   <script>
     // URL管理機能のJavaScript
     
@@ -971,7 +1099,137 @@
         })
         .deactivateUserUrl(userId);
     }
-    
+
+    // =============================
+    // 統計レポート機能のJavaScript
+    // =============================
+
+    function initializeReportTab() {
+      // 年セレクトボックスの初期化
+      var yearSelect = document.getElementById('reportYear');
+      var currentYear = new Date().getFullYear();
+
+      // 過去3年分と未来1年分の年を追加
+      for (var year = currentYear - 3; year <= currentYear + 1; year++) {
+        var option = document.createElement('option');
+        option.value = year;
+        option.textContent = year + '年';
+        if (year === currentYear) {
+          option.selected = true;
+        }
+        yearSelect.appendChild(option);
+      }
+
+      // 月セレクトボックスの初期化（現在の月を選択）
+      var monthSelect = document.getElementById('reportMonth');
+      var currentMonth = new Date().getMonth() + 1;
+      monthSelect.value = currentMonth;
+    }
+
+    function generateReport() {
+      var year = parseInt(document.getElementById('reportYear').value);
+      var month = parseInt(document.getElementById('reportMonth').value);
+
+      var statusDiv = document.getElementById('reportStatus');
+      statusDiv.style.display = 'block';
+      statusDiv.style.background = '#fff3cd';
+      statusDiv.style.border = '1px solid #ffeaa7';
+      statusDiv.style.color = '#856404';
+      statusDiv.innerHTML = '<strong>処理中...</strong> ' + year + '年' + month + '月のレポートを生成しています。しばらくお待ちください。';
+
+      document.getElementById('reportContainer').style.display = 'none';
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          console.log('レポート生成結果:', result);
+
+          if (result.success) {
+            statusDiv.style.background = '#d4edda';
+            statusDiv.style.border = '1px solid #c3e6cb';
+            statusDiv.style.color = '#155724';
+            statusDiv.innerHTML = '<strong>完了!</strong> ' + result.message;
+
+            // レポートを表示
+            displayReport(result.reportData);
+          } else {
+            statusDiv.style.background = '#f8d7da';
+            statusDiv.style.border = '1px solid #f5c6cb';
+            statusDiv.style.color = '#721c24';
+            statusDiv.innerHTML = '<strong>エラー:</strong> ' + result.message;
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('レポート生成エラー:', error);
+          statusDiv.style.background = '#f8d7da';
+          statusDiv.style.border = '1px solid #f5c6cb';
+          statusDiv.style.color = '#721c24';
+          statusDiv.innerHTML = '<strong>システムエラー:</strong> ' + error.message;
+        })
+        .generateMonthlyReport(year, month);
+    }
+
+    function displayReport(reportData) {
+      console.log('レポート表示:', reportData);
+
+      // レポートコンテナを表示
+      document.getElementById('reportContainer').style.display = 'block';
+
+      // 基本統計の表示
+      var basicStats = reportData.basicStatistics;
+      document.getElementById('reportTotalEmployees').textContent = basicStats.totalEmployees || 0;
+      document.getElementById('reportTotalRemaining').textContent = (basicStats.totalRemainingDays || 0).toFixed(1);
+      document.getElementById('reportAvgRemaining').textContent = (basicStats.averageRemainingDays || 0).toFixed(1);
+      document.getElementById('reportLowRemaining').textContent = basicStats.lowRemainingCount || 0;
+      document.getElementById('reportZeroRemaining').textContent = basicStats.zeroRemainingCount || 0;
+
+      // 申請統計の表示
+      var appStats = reportData.applicationStatistics;
+      document.getElementById('reportTotalApplications').textContent = appStats.totalApplications || 0;
+      document.getElementById('reportApprovedApplications').textContent = appStats.approvedApplications || 0;
+      document.getElementById('reportPendingApplications').textContent = appStats.pendingApplications || 0;
+      document.getElementById('reportRejectedApplications').textContent = appStats.rejectedApplications || 0;
+      document.getElementById('reportTotalDays').textContent = (appStats.totalDaysUsed || 0).toFixed(1);
+
+      // 付与統計の表示
+      var grantStats = reportData.grantStatistics;
+      document.getElementById('reportTotalGrants').textContent = grantStats.totalGrants || 0;
+      document.getElementById('reportGrantedDays').textContent = (grantStats.totalGrantedDays || 0).toFixed(1);
+
+      // 年5日取得義務統計の表示
+      if (reportData.fiveDayObligationStats) {
+        var obligationStats = reportData.fiveDayObligationStats;
+        document.getElementById('reportObligationTargets').textContent = obligationStats.targetCount || 0;
+        document.getElementById('reportObligationAchieved').textContent = obligationStats.achievedCount || 0;
+        document.getElementById('reportObligationNotAchieved').textContent = obligationStats.notAchievedCount || 0;
+
+        // 未達成者リストの表示
+        var listDiv = document.getElementById('obligationNotAchievedList');
+        if (obligationStats.notAchievedUsers && obligationStats.notAchievedUsers.length > 0) {
+          var html = '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+          html += '<thead><tr style="background: #f44336; color: white;">';
+          html += '<th style="padding: 10px; border: 1px solid #ddd;">利用者ID</th>';
+          html += '<th style="padding: 10px; border: 1px solid #ddd;">利用者名</th>';
+          html += '<th style="padding: 10px; border: 1px solid #ddd;">取得日数</th>';
+          html += '<th style="padding: 10px; border: 1px solid #ddd;">不足日数</th>';
+          html += '</tr></thead><tbody>';
+
+          obligationStats.notAchievedUsers.forEach(function(user) {
+            html += '<tr style="background: white;">';
+            html += '<td style="padding: 10px; border: 1px solid #ddd;">' + (user.userId || '-') + '</td>';
+            html += '<td style="padding: 10px; border: 1px solid #ddd;">' + (user.userName || '-') + '</td>';
+            html += '<td style="padding: 10px; border: 1px solid #ddd;">' + (user.usedDays || 0) + '日</td>';
+            html += '<td style="padding: 10px; border: 1px solid #ddd; color: #f44336; font-weight: bold;">' + (5 - (user.usedDays || 0)) + '日</td>';
+            html += '</tr>';
+          });
+
+          html += '</tbody></table>';
+          listDiv.innerHTML = html;
+        } else {
+          listDiv.innerHTML = '<p style="color: #4CAF50; text-align: center;">全員が5日以上取得しています。</p>';
+        }
+      }
+    }
+
     // タブ切り替え機能を拡張
     function showTab(tabName) {
       // 既存のタブ切り替え処理
@@ -1003,6 +1261,12 @@
       if (tabName === 'url-management') {
         console.log('URL管理タブが選択されました');
         // 必要に応じて初期データロード
+      }
+
+      // 統計レポートタブが選択された場合の初期化
+      if (tabName === 'statistics') {
+        console.log('📊 統計レポートタブが選択されました');
+        initializeReportTab();
       }
     }
   </script>
