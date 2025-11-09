@@ -2,6 +2,295 @@
 
 ---
 
+## 2025-11-09: 付与管理・失効管理機能のデバッグと完成（v41-v45） ✅
+
+### 背景
+前日に作成したテストデータ生成機能とシート設定機能を使って、付与管理・失効管理機能のテストを実施。
+複数の問題を発見・修正し、すべての管理機能が正常に動作することを確認。
+
+### 実施内容
+
+#### 1. テストデータ生成のデバッグ ✅ (v40-v41)
+
+**問題:**
+- `testGenerateTestData()` を実行してもスプレッドシートにデータが挿入されない
+
+**原因:**
+- データは正常に生成されていたが、マスターシートの下の方（マニュアルと被らない行）に挿入されていた
+- マニュアルがJ列以降に横方向に追加されているため、縦方向のデータ追加は正常に動作
+
+**確認結果:**
+- マスターシート: TEST01～TEST06（6名）が存在
+- 付与履歴シート: 13件のテストデータが存在
+
+**デバッグスクリプト作成:** `test/debug-grant-functions.js`
+- `debugSixMonthTargets()` - 6ヶ月付与対象者のデバッグ
+- `debugAnnualTargets()` - 年次付与対象者のデバッグ
+- `debugGrantHistory()` - 付与履歴読み込みのデバッグ
+- `debugExpiringLeaves()` - 失効予定確認のデバッグ
+
+**デプロイ:** v41 (コミット: 98c481b)
+
+#### 2. 年次付与対象者の計算ロジック修正 ✅ (v41)
+
+**問題:**
+- GASエディタでは正常に動作（TEST03検出）するが、年次付与対象者が0名と表示される
+
+**原因:**
+- 次回付与日の計算が間違っていた
+```javascript
+// 修正前（間違い）
+var nextGrantYear = Math.floor(workYears) + 1;  // 1年 + 1 = 2年
+var nextGrantDate = new Date(initialGrantDate);
+nextGrantDate.setFullYear(nextGrantDate.getFullYear() + nextGrantYear);  // +2年してしまう
+
+// 修正後（正しい）
+if (latestAnnualGrantDateStr) {
+  nextGrantDate = new Date(latestAnnualGrantDate);
+  nextGrantDate.setFullYear(nextGrantDate.getFullYear() + 1);  // 最新年次付与日 + 1年
+} else {
+  nextGrantDate = new Date(initialGrantDate);
+  nextGrantDate.setFullYear(nextGrantDate.getFullYear() + 1);  // 初回付与日 + 1年
+}
+```
+
+**修正内容:**
+- 最新年次付与日（H列）を参照するように変更
+- 最新年次付与日がある場合はそれに1年を加算、ない場合は初回付与日に1年を加算
+- 複雑な年度計算ロジックを削除し、シンプルな日付比較に変更
+
+**デプロイ:** v41
+
+#### 3. Dateオブジェクトのシリアライズ問題の修正 ✅ (v42-v43)
+
+**問題:**
+- GASの関数は正常に実行されるが、管理画面では `null` が返ってくる
+- 失効予定確認は正常動作するが、6ヶ月付与・年次付与・付与履歴は動作しない
+
+**原因:**
+- **DateオブジェクトがWebアプリで正しくシリアライズできない**
+- 失効予定確認では `formatDate()` で文字列に変換していたが、他の関数では変換していなかった
+
+**修正内容:**
+すべてのDateオブジェクトを `formatDate()` で文字列（YYYY/MM/DD形式）に変換：
+
+**6ヶ月付与対象者:**
+```javascript
+// 修正前
+hireDate: hireDate,  // Date オブジェクト → null になる
+sixMonthDate: sixMonthDate  // Date オブジェクト → null になる
+
+// 修正後
+hireDate: formatDate(hireDate),  // "2025/05/08"
+sixMonthDate: formatDate(sixMonthDate)  // "2025/11/08"
+```
+
+**年次付与対象者:**
+```javascript
+// 修正後
+hireDate: formatDate(hireDate),
+initialGrantDate: formatDate(initialGrantDate),
+latestAnnualGrantDate: latestAnnualGrantDateStr ? formatDate(new Date(latestAnnualGrantDateStr)) : null,
+nextGrantDate: formatDate(nextGrantDate)
+```
+
+**付与履歴:**
+```javascript
+// 修正後
+createdAt: formatDate(row[7])  // Dateオブジェクトから文字列に変換
+```
+
+**デプロイ:** v42 (エラーログ追加), v43 (Date修正)
+
+#### 4. フィールド名と計算値の追加 ✅ (v44)
+
+**問題:**
+- 対象者が検出されるようになったが、管理画面での表示が不完全
+  - 利用者名が「-」
+  - 経過日数・付与日数が「-」
+  - 勤続年数が小数点表示（2.609年）
+
+**原因:**
+- 返り値のフィールド名が管理画面の期待値と不一致
+- 計算していない値がある
+
+**修正内容:**
+
+**6ヶ月付与対象者:**
+```javascript
+targets.push({
+  userId: userId,
+  userName: name,  // name → userName に変更
+  hireDate: formatDate(hireDate),
+  sixMonthDate: formatDate(sixMonthDate),
+  weeklyWorkDays: weeklyWorkDays,
+  grantDays: calculateInitialLeaveDays(weeklyWorkDays),  // 付与日数を計算
+  daysFromHire: Math.floor((today - hireDate) / (1000 * 60 * 60 * 24))  // 経過日数を計算
+});
+```
+
+**年次付与対象者:**
+```javascript
+targets.push({
+  userId: userId,
+  userName: name,  // name → userName に変更
+  hireDate: formatDate(hireDate),
+  initialGrantDate: formatDate(initialGrantDate),
+  latestAnnualGrantDate: latestAnnualGrantDateStr ? formatDate(new Date(latestAnnualGrantDateStr)) : null,
+  workYears: Math.floor(workYears),  // 2.609 → 2 に変更
+  weeklyWorkDays: weeklyWorkDays,
+  nextGrantDate: formatDate(nextGrantDate),
+  grantDays: calculateAnnualLeaveDays(Math.floor(workYears), weeklyWorkDays)  // 付与日数を計算
+});
+```
+
+**デプロイ:** v44
+
+#### 5. 空行スキップ機能の追加 ✅ (v45)
+
+**問題:**
+- 付与履歴に空レコード（すべて「-」の行）が37件も表示される
+
+**原因:**
+- 付与履歴シートに空行が含まれている
+- 空行もデータとして読み込まれていた
+
+**修正内容:**
+```javascript
+// ヘッダー行をスキップして処理
+for (var i = 1; i < data.length; i++) {
+  var row = data[i];
+  var userId = String(row[0]);
+
+  // 空行をスキップ
+  if (!userId || userId.trim() === '') {
+    continue;
+  }
+
+  history.push({
+    userId: userId,
+    userName: userNameMap[userId] || '-',
+    grantDate: formatDate(row[1]),
+    grantDays: row[2],
+    expiryDate: formatDate(row[3]),
+    remainingDays: row[4],
+    grantType: row[5],
+    workYears: row[6],
+    createdAt: formatDate(row[7])
+  });
+}
+```
+
+**デプロイ:** v45
+
+### 最終確認結果
+
+#### ✅ 6ヶ月付与管理（完全動作）
+```
+完了! 2名の対象者が見つかりました。
+
+利用者ID    利用者名                      入社日        経過日数    付与日数
+TEST01     テスト太郎（6ヶ月経過）        2025/05/08   185日       10日
+TEST02     テスト花子（6ヶ月経過・週3日） 2025/04/15   208日       5日
+```
+
+#### ✅ 年次付与管理（完全動作）
+```
+完了! 4名の対象者が見つかりました。
+
+利用者ID    利用者名                    入社日        勤続年数    付与日数
+TEST03     テスト次郎（1年6ヶ月）       2023/04/01   2年         12日
+TEST04     テスト三郎（失効間近）       2022/07/01   3年         14日
+TEST05     テスト四郎（失効済みあり）    2021/05/01   4年         16日
+TEST06     テスト五郎（FIFO確認用）     2020/04/01   5年         18日
+```
+
+#### ✅ 付与履歴（完全動作）
+```
+完了! 13件の履歴を読み込みました。
+
+付与日        利用者ID    利用者名                    付与日数    付与種別    勤続年数
+2025/04/01   TEST05     テスト四郎（失効済みあり）    12日       年次        2.5年
+2024/10/01   TEST03     テスト次郎（1年6ヶ月）        10日       初回        0.5年
+...（全13件、空レコードなし）
+```
+
+#### ✅ 失効管理（元々動作していた）
+```
+1週間以内の失効予定: 2件（TEST04の2つの付与）
+1ヶ月以内の失効予定: 3件（+ TEST05の1件）
+3ヶ月以内の失効予定: 3件
+```
+
+### デプロイ履歴
+
+| Version | 説明 | 主な変更 |
+|---------|------|----------|
+| 41 | Fix annual grant target calculation | 年次付与の計算ロジック修正 |
+| 42 | Add enhanced error logging | エラーログ強化 |
+| 43 | Fix Date serialization issue | Dateオブジェクトのシリアライズ修正 |
+| 44 | Fix field names and add calculations | フィールド名修正、計算値追加 |
+| 45 | Skip empty rows in grant history | 付与履歴の空行スキップ |
+
+### 成果物
+
+**デバッグスクリプト:**
+- `test/debug-grant-functions.js` - 付与管理・失効管理機能のデバッグ用スクリプト（235行）
+
+**修正ファイル:**
+- `src/leave-grant.js` - 付与管理・失効管理関数の修正
+
+**動作確認済み機能:**
+- ✅ 6ヶ月付与対象者確認
+- ✅ 年次付与対象者確認
+- ✅ 付与履歴読み込み
+- ✅ 失効予定確認（1週間/1ヶ月/3ヶ月）
+
+### 技術メモ
+
+#### 重要な教訓
+
+**1. GASのWebアプリではDateオブジェクトが使えない**
+- Webアプリ経由でDateオブジェクトを返すと `null` になる
+- すべてのDateオブジェクトは文字列に変換してから返す必要がある
+- `formatDate()` 関数を使って `YYYY/MM/DD` 形式に変換
+
+**2. フィールド名の一貫性**
+- サーバー側（GAS）と クライアント側（HTML）でフィールド名を一致させる
+- `name` vs `userName` のような不一致に注意
+
+**3. 空行の処理**
+- スプレッドシートのデータ範囲には空行が含まれることがある
+- 空行チェックを必ず実装する
+
+**4. デバッグの重要性**
+- GASエディタで直接実行するとコンソールログが見られる
+- Webアプリ経由とGASエディタ直接実行で挙動が異なることがある（Date問題など）
+
+### 次回作業（明日以降）
+
+#### ステップ1: 付与処理の実行テスト 🚧
+- [ ] 6ヶ月付与の手動実行テスト
+- [ ] 年次付与の手動実行テスト
+- [ ] 付与後のマスターシート・付与履歴シートの更新確認
+
+#### ステップ2: 失効処理の実行テスト 🚧
+- [ ] 失効処理の手動実行テスト
+- [ ] 失効後の付与履歴シートの更新確認
+
+#### ステップ3: その他機能のテスト
+- [ ] 有給申請機能のテスト
+- [ ] 申請承認機能のテスト
+- [ ] 通知機能のテスト
+- [ ] URL管理機能のテスト
+
+#### ステップ4: 本番データでの動作確認
+- [ ] テストデータを削除
+- [ ] 本番データで全機能をテスト
+- [ ] 問題があれば修正
+
+---
+
 ## 2025-11-08: テストデータ生成機能とシート設定機能の実装（v37-v40） ✅🚧
 
 ### 背景

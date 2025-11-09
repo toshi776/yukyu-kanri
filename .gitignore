@@ -30,4 +30,4 @@ __pycache__/
 
 # samples（必要に応じて）
 samples/
-docs/
+# docs/  # worklog.mdなど重要なドキュメントを含むため除外しない
