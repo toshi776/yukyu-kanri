@@ -54,7 +54,7 @@
 
 | テストレベル | 目的 | 実施状況 |
 |------------|------|---------|
-| **単体テスト** | 各関数の個別動作確認 | ✅ 完了（主要関数） |
+| **単体テスト** | 各関数の個別動作確認 | ✅ 自動化進行中（23ケース） |
 | **統合テスト** | モジュール間の連携確認 | ✅ 完了（25項目） |
 | **システムテスト** | エンドツーエンドの動作確認 | 🔄 一部完了 |
 | **受入テスト** | 実際のユーザー操作での確認 | ⏳ 未実施 |
@@ -88,13 +88,12 @@
 
 ### 3.2 テスト実行方法
 ```bash
-# GASエディタで直接実行
-1. clasp open でGASエディタを開く
-2. test配下の該当テストファイルを開く
-3. 関数を選択して実行
+# ローカル単体テスト（Node環境）
+npm install   # 初回のみ
+npm test      # test/unit/run-tests.js を実行（23ケース）
 
-# または clasp経由で実行
-clasp push
+# GASエディタで直接実行（既存手順）
+clasp open
 clasp run <関数名>
 ```
 
@@ -472,6 +471,20 @@ clasp run <関数名>
 #### 2025-08: システム統合テスト
 - ✅ 25項目すべて成功（100%）
 
+#### 2025-03: ローカル自動単体テスト
+- ✅ `npm test`（23ケース、自動化済み）
+  - 付与計算テーブル（初回/年次、週1〜5日）
+  - 勤続年数計算／年5日義務判定／日付フォーマット
+  - `grantLeave`/`consumeLeave`/`calculateEffectiveRemainingDays`
+  - `processExpiredLeaves`/`getExpiringLeaves`
+  - `getSixMonthGrantTargets`/`processSixMonthGrants`
+  - `getAnnualGrantTargets`/`processAnnualGrants`
+  - `sendLowRemainingDaysAlert`（通常/臨界通知判定）
+  - `sendApplicationNotification`（承認リンク生成・HR CC）
+  - `sendApprovalResultNotification`（却下理由・上長CC）
+  - `sendGrantNotification`（上長共有）
+  - `calculateBasicStatistics`/`generateMonthlyReport`
+
 ---
 
 ## 7. 残課題・今後のテスト計画
@@ -663,6 +676,8 @@ test/
 ├── system-integration-test.js         # システム統合テスト
 ├── test-data-generation.js            # テストデータ生成
 └── debug-grant-functions.js           # デバッグスクリプト
+├── unit/helpers/mock-spreadsheet.js   # Spreadsheet API モック
+└── unit/run-tests.js                  # Nodeで実行する23ケースの単体テスト
 ```
 
 ### 9.2 テストデータ
@@ -681,7 +696,8 @@ test/
 
 ### 10.1 現在の品質状況
 - ✅ **システム機能**: 95%実装完了
-- ✅ **テスト成功率**: システム統合テスト100%（25/25項目）
+- ✅ **自動単体テスト**: 23/23ケース成功（`npm test`）
+- ✅ **統合テスト**: 25/25項目成功（Apps Script）
 - 🔄 **個別機能テスト**: 46%完了（77/167項目）
 - ⏳ **本番運用準備度**: 70%
 

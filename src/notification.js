@@ -11,6 +11,11 @@ var NOTIFICATION_CONFIG = {
   MAX_DAILY_EMAILS: 50, // GASの制限を考慮
   TEST_MODE: false, // 開発時はtrue、本番時はfalse
   ENABLE_NOTIFICATIONS: true, // 通知機能の有効/無効切り替え
+  HR_EMAIL: 'hr@company.com',
+  APPROVAL_BASE_URL: '',
+  CC_HR_ON_APPLICATION: true,
+  CC_MANAGER_ON_APPROVAL: true,
+  CC_MANAGER_ON_GRANT: true,
   NOTIFICATION_SETTINGS: {
     APPLICATION: true,    // 申請通知
     APPROVAL: true,       // 承認結果通知
@@ -54,18 +59,24 @@ function sendApplicationNotification(application) {
     }
     
     var subject = NOTIFICATION_CONFIG.SUBJECT_PREFIX + '有給申請の承認依頼';
-    var htmlBody = generateApplicationNotificationHtml(application);
-    var plainBody = generateApplicationNotificationText(application);
+    var approvalLink = buildApprovalLink(application);
+    var htmlBody = generateApplicationNotificationHtml(application, approvalLink);
+    var plainBody = generateApplicationNotificationText(application, approvalLink);
     
     // メール送信
+    var emailOptions = {
+      htmlBody: htmlBody,
+      name: '有給管理システム'
+    };
+    if (NOTIFICATION_CONFIG.CC_HR_ON_APPLICATION && NOTIFICATION_CONFIG.HR_EMAIL) {
+      emailOptions.cc = NOTIFICATION_CONFIG.HR_EMAIL;
+    }
+    
     GmailApp.sendEmail(
       approverEmail,
       subject,
       plainBody,
-      {
-        htmlBody: htmlBody,
-        name: '有給管理システム'
-      }
+      emailOptions
     );
     
     console.log('申請通知メール送信完了:', approverEmail);
@@ -91,9 +102,10 @@ function sendApplicationNotification(application) {
  * @param {string} status - 承認結果 ('Approved' or 'Rejected')
  * @return {Object} 送信結果
  */
-function sendApprovalResultNotification(application, status) {
+function sendApprovalResultNotification(application, status, reason) {
   try {
     console.log('承認結果通知メール送信開始:', { application, status });
+    var rejectionReason = reason || '';
     
     // 通知機能が無効な場合
     if (!NOTIFICATION_CONFIG.ENABLE_NOTIFICATIONS || !NOTIFICATION_CONFIG.NOTIFICATION_SETTINGS.APPROVAL) {
@@ -123,18 +135,27 @@ function sendApprovalResultNotification(application, status) {
     var subject = NOTIFICATION_CONFIG.SUBJECT_PREFIX + 
       (isApproved ? '有給申請が承認されました' : '有給申請について');
     
-    var htmlBody = generateApprovalResultNotificationHtml(application, status);
-    var plainBody = generateApprovalResultNotificationText(application, status);
+    var htmlBody = generateApprovalResultNotificationHtml(application, status, rejectionReason);
+    var plainBody = generateApprovalResultNotificationText(application, status, rejectionReason);
     
     // メール送信
+    var emailOptions = {
+      htmlBody: htmlBody,
+      name: '有給管理システム'
+    };
+    
+    if (NOTIFICATION_CONFIG.CC_MANAGER_ON_APPROVAL) {
+      var managerEmail = getApproverEmail(application.userId);
+      if (managerEmail) {
+        emailOptions.cc = managerEmail;
+      }
+    }
+    
     GmailApp.sendEmail(
       applicantEmail,
       subject,
       plainBody,
-      {
-        htmlBody: htmlBody,
-        name: '有給管理システム'
-      }
+      emailOptions
     );
     
     console.log('承認結果通知メール送信完了:', applicantEmail);
@@ -180,17 +201,19 @@ function sendLowRemainingDaysAlert(employee) {
         testMode: true
       };
     }
-    
     var employeeEmail = getEmployeeEmail(employee.userId);
     if (!employeeEmail) {
       throw new Error('社員のメールアドレスが見つかりません');
     }
     
+    var isCritical = employee.remaining <= 3;
+    var approverEmail = isCritical ? getApproverEmail(employee.userId) : null;
+    
     var subject = NOTIFICATION_CONFIG.SUBJECT_PREFIX + '有給残日数のお知らせ';
     var htmlBody = generateLowRemainingDaysAlertHtml(employee);
     var plainBody = generateLowRemainingDaysAlertText(employee);
     
-    // メール送信
+    // メール送信（本人宛）
     GmailApp.sendEmail(
       employeeEmail,
       subject,
@@ -200,6 +223,22 @@ function sendLowRemainingDaysAlert(employee) {
         name: '有給管理システム'
       }
     );
+    
+    // 残日数が3日以下の場合は上長にも共有
+    if (approverEmail) {
+      var managerSubject = subject + '（上長共有）';
+      var managerBody = plainBody + '\n\n※このメールは部下の残日数が3日以下のため共有されています。';
+      GmailApp.sendEmail(
+        approverEmail,
+        managerSubject,
+        managerBody,
+        {
+          htmlBody: htmlBody + '<p style="color:#f44336;"><strong>※部下の残日数が3日以下のため共有されています。</strong></p>',
+          name: '有給管理システム'
+        }
+      );
+      console.log('残日数アラートを上長にも送信:', approverEmail);
+    }
     
     console.log('残日数アラートメール送信完了:', employeeEmail);
     
@@ -225,8 +264,15 @@ function sendLowRemainingDaysAlert(employee) {
 /**
  * 申請通知のHTMLメールテンプレート生成
  */
-function generateApplicationNotificationHtml(application) {
+function generateApplicationNotificationHtml(application, approvalLink) {
   var daysText = application.applyDays === 0.5 ? '0.5日（半日）' : '1日';
+  var actionHtml = approvalLink ? `
+    <p style="margin-top: 20px;">
+      <a href="${approvalLink}" style="display: inline-block; padding: 10px 16px; background-color: #4CAF50; color: #fff; text-decoration: none; border-radius: 4px;">承認画面を開く</a>
+    </p>
+  ` : `
+    <p style="margin-top: 20px;">管理画面にアクセスして承認・却下の処理をお願いします。</p>
+  `;
   
   var html = `
   <html>
@@ -253,11 +299,7 @@ function generateApplicationNotificationHtml(application) {
         <td style="padding: 8px; border: 1px solid #ddd;">${application.timestamp}</td>
       </tr>
     </table>
-    
-    <p style="margin-top: 30px;">
-      <strong>操作:</strong><br>
-      管理画面にアクセスして承認・却下の処理をお願いします。
-    </p>
+    ${actionHtml}
     
     <p style="color: #666; font-size: 12px; margin-top: 40px;">
       このメールは有給管理システムから自動送信されています。<br>
@@ -272,8 +314,11 @@ function generateApplicationNotificationHtml(application) {
 /**
  * 申請通知のテキストメール生成
  */
-function generateApplicationNotificationText(application) {
+function generateApplicationNotificationText(application, approvalLink) {
   var daysText = application.applyDays === 0.5 ? '0.5日（半日）' : '1日';
+  var actionLine = approvalLink ?
+    '承認リンク: ' + approvalLink :
+    '管理画面にアクセスして承認・却下の処理をお願いします。';
   
   return `有給申請の承認依頼
 
@@ -284,8 +329,7 @@ function generateApplicationNotificationText(application) {
 申請日数: ${daysText}
 申請時刻: ${application.timestamp}
 
-操作:
-管理画面にアクセスして承認・却下の処理をお願いします。
+${actionLine}
 
 ※このメールは有給管理システムから自動送信されています。
 返信はできませんので、ご質問がある場合は人事部までお問い合わせください。`;
@@ -294,11 +338,17 @@ function generateApplicationNotificationText(application) {
 /**
  * 承認結果通知のHTMLメール生成
  */
-function generateApprovalResultNotificationHtml(application, status) {
+function generateApprovalResultNotificationHtml(application, status, reason) {
   var isApproved = status === 'Approved';
   var statusText = isApproved ? '承認' : '却下';
   var color = isApproved ? '#4CAF50' : '#f44336';
   var daysText = application.applyDays === 0.5 ? '0.5日（半日）' : '1日';
+  var reasonHtml = (!isApproved && reason) ? `
+    <tr>
+      <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f5f5f5;">理由</td>
+      <td style="padding: 8px; border: 1px solid #ddd;">${reason}</td>
+    </tr>
+  ` : '';
   
   var html = `
   <html>
@@ -320,6 +370,7 @@ function generateApprovalResultNotificationHtml(application, status) {
         <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f5f5f5;">結果</td>
         <td style="padding: 8px; border: 1px solid #ddd; color: ${color}; font-weight: bold;">${statusText}</td>
       </tr>
+      ${reasonHtml}
     </table>
     
     ${isApproved ? 
@@ -340,10 +391,11 @@ function generateApprovalResultNotificationHtml(application, status) {
 /**
  * 承認結果通知のテキストメール生成
  */
-function generateApprovalResultNotificationText(application, status) {
+function generateApprovalResultNotificationText(application, status, reason) {
   var isApproved = status === 'Approved';
   var statusText = isApproved ? '承認' : '却下';
   var daysText = application.applyDays === 0.5 ? '0.5日（半日）' : '1日';
+  var reasonText = (!isApproved && reason) ? `理由: ${reason}\n` : '';
   
   return `有給申請が${statusText}されました
 
@@ -352,6 +404,7 @@ function generateApprovalResultNotificationText(application, status) {
 申請日: ${application.applyDate}
 申請日数: ${daysText}
 結果: ${statusText}
+${reasonText}
 
 ${isApproved ? 
   '有給申請が承認されました。予定通り休暇を取得してください。' :
@@ -472,6 +525,24 @@ function getEmployeeEmail(userId) {
   
   // 仮の実装（実際は適切なデータソースから取得）
   return userId.toLowerCase() + '@company.com';
+}
+
+/**
+ * 承認リンクを生成
+ */
+function buildApprovalLink(application) {
+  if (!NOTIFICATION_CONFIG.APPROVAL_BASE_URL) {
+    return '';
+  }
+  
+  var base = NOTIFICATION_CONFIG.APPROVAL_BASE_URL;
+  var separator = base.indexOf('?') === -1 ? '?' : '&';
+  var params = [
+    'userId=' + encodeURIComponent(application.userId || ''),
+    'date=' + encodeURIComponent(application.applyDate || ''),
+    'days=' + encodeURIComponent(application.applyDays || 0)
+  ];
+  return base + separator + params.join('&');
 }
 
 /**
@@ -678,14 +749,22 @@ function sendGrantNotification(grantData) {
     var plainBody = generateGrantNotificationText(grantData);
     
     // メール送信
+    var grantOptions = {
+      htmlBody: htmlBody,
+      name: '有給管理システム'
+    };
+    if (NOTIFICATION_CONFIG.CC_MANAGER_ON_GRANT) {
+      var managerEmail = getApproverEmail(grantData.userId);
+      if (managerEmail) {
+        grantOptions.cc = managerEmail;
+      }
+    }
+    
     GmailApp.sendEmail(
       employeeEmail,
       subject,
       plainBody,
-      {
-        htmlBody: htmlBody,
-        name: '有給管理システム'
-      }
+      grantOptions
     );
     
     console.log('付与通知メール送信完了:', employeeEmail);

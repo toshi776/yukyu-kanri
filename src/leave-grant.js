@@ -3,119 +3,6 @@
 // =============================
 
 /**
- * 有給付与日数を計算
- * @param {number} workYears - 勤続年数（年単位）
- * @param {number} weeklyWorkDays - 週所定労働日数
- * @param {boolean} isInitial - 初回付与かどうか
- * @return {number} 付与日数
- */
-function calculateLeaveDays(workYears, weeklyWorkDays, isInitial) {
-  try {
-    var years = Math.floor(workYears);
-    var weekDays = Math.floor(weeklyWorkDays);
-    
-    console.log('付与日数計算:', {
-      workYears: workYears,
-      years: years,
-      weeklyWorkDays: weeklyWorkDays,
-      weekDays: weekDays,
-      isInitial: isInitial
-    });
-    
-    if (isInitial) {
-      return calculateInitialLeaveDays(weekDays);
-    }
-    
-    return calculateAnnualLeaveDays(years, weekDays);
-    
-  } catch (error) {
-    console.error('付与日数計算エラー:', error);
-    return 0;
-  }
-}
-
-/**
- * 初回付与日数を計算（入社6ヶ月後）
- */
-function calculateInitialLeaveDays(weeklyWorkDays) {
-  var weekDays = Math.floor(weeklyWorkDays);
-  
-  // 基本設計書ベースの初回付与日数
-  if (weekDays >= 5) return 10;
-  if (weekDays === 4) return 7;
-  if (weekDays === 3) return 5;
-  if (weekDays === 2) return 3;
-  if (weekDays === 1) return 1;
-  
-  return 0;
-}
-
-/**
- * 年次付与日数を計算（2回目以降）
- */
-function calculateAnnualLeaveDays(workYears, weeklyWorkDays) {
-  var years = Math.floor(workYears);
-  var weekDays = Math.floor(weeklyWorkDays);
-  
-  // 週5日以上勤務者
-  if (weekDays >= 5) {
-    if (years < 1) return 10;
-    if (years < 2) return 11;
-    if (years < 3) return 12;
-    if (years < 4) return 14;
-    if (years < 5) return 16;
-    if (years < 6) return 18;
-    return 20;
-  }
-  
-  // 週4日勤務者
-  if (weekDays === 4) {
-    if (years < 1) return 7;
-    if (years < 2) return 8;
-    if (years < 3) return 9;
-    if (years < 4) return 10;
-    if (years < 5) return 12;
-    if (years < 6) return 13;
-    return 15;
-  }
-  
-  // 週3日勤務者
-  if (weekDays === 3) {
-    if (years < 1) return 5;
-    if (years < 2) return 6;
-    if (years < 3) return 6;
-    if (years < 4) return 8;
-    if (years < 5) return 9;
-    if (years < 6) return 10;
-    return 11;
-  }
-  
-  // 週2日勤務者
-  if (weekDays === 2) {
-    if (years < 1) return 3;
-    if (years < 2) return 4;
-    if (years < 3) return 4;
-    if (years < 4) return 5;
-    if (years < 5) return 6;
-    if (years < 6) return 6;
-    return 7;
-  }
-  
-  // 週1日勤務者
-  if (weekDays === 1) {
-    if (years < 1) return 1;
-    if (years < 2) return 2;
-    if (years < 3) return 2;
-    if (years < 4) return 2;
-    if (years < 5) return 3;
-    if (years < 6) return 3;
-    return 3;
-  }
-  
-  return 0;
-}
-
-/**
  * 付与ルールのテスト関数
  */
 function testLeaveGrantCalculation() {
@@ -204,37 +91,6 @@ function runLeaveGrantProcess() {
       message: '付与処理中にエラーが発生しました: ' + error.message
     };
   }
-}
-
-/**
- * 勤続年数を計算
- * @param {Date} hireDate - 入社日
- * @param {Date} baseDate - 基準日（付与日や今日）
- * @return {number} 勤続年数（小数点仕切き含む）
- */
-function calculateWorkYears(hireDate, baseDate) {
-  if (!hireDate || !baseDate) return 0;
-  
-  var hire = new Date(hireDate);
-  var base = new Date(baseDate);
-  
-  hire.setHours(0, 0, 0, 0);
-  base.setHours(0, 0, 0, 0);
-  
-  // 日数差を年数に変換
-  var diffDays = Math.floor((base - hire) / (1000 * 60 * 60 * 24));
-  var workYears = diffDays / 365.25; // うるう年を考慮
-  
-  return Math.max(0, workYears);
-}
-
-/**
- * 年5日取得義務の対象者かどうかを判定
- * @param {number} grantedDays - 付与日数
- * @return {boolean} 年5日取得義務対象かどうか
- */
-function isFiveDayObligationTarget(grantedDays) {
-  return grantedDays >= 10;
 }
 
 // =============================
@@ -482,22 +338,6 @@ function getRecentGrantHistory(limit) {
     console.error('スタックトレース:', error.stack);
     return [];
   }
-}
-
-/**
- * 日付をYYYY/MM/DD形式にフォーマット
- */
-function formatDate(date) {
-  if (!date) return '-';
-
-  var d = new Date(date);
-  if (isNaN(d.getTime())) return '-';
-
-  var year = d.getFullYear();
-  var month = ('0' + (d.getMonth() + 1)).slice(-2);
-  var day = ('0' + d.getDate()).slice(-2);
-
-  return year + '/' + month + '/' + day;
 }
 
 /**
@@ -812,6 +652,16 @@ function processSixMonthGrants() {
         
         // 付与日数を計算
         var grantDays = calculateLeaveDays(0.5, target.weeklyWorkDays, true);
+        if (grantDays <= 0) {
+          console.log('付与テーブル外のためスキップ:', target.userId);
+          results.push({
+            userId: target.userId,
+            name: target.name,
+            success: false,
+            reason: '付与対象外（テーブル外）'
+          });
+          return;
+        }
         
         // 有給を付与
         var grantResult = grantLeave(
@@ -1460,6 +1310,16 @@ function processAnnualGrants() {
         
         // 付与日数を計算（年次付与）
         var grantDays = calculateLeaveDays(target.workYears, target.weeklyWorkDays, false);
+        if (grantDays <= 0) {
+          console.log('付与テーブル外のためスキップ:', target.userId);
+          results.push({
+            userId: target.userId,
+            name: target.name,
+            success: false,
+            reason: '付与対象外（テーブル外）'
+          });
+          return;
+        }
         
         // 有給を付与
         var grantResult = grantLeave(

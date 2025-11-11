@@ -1,0 +1,10 @@
+{
+  "name": "yukyu-kanri",
+  "version": "0.1.0",
+  "description": "有給管理システム向けユニットテスト設定",
+  "scripts": {
+    "test": "node test/unit/run-tests.js"
+  },
+  "devDependencies": {},
+  "license": "MIT"
+}

@@ -264,6 +264,7 @@ function approveRecord(obj) {
     
     var rowNumber = obj.rowNumber;
     var status = obj.status || 'Approved';
+    var rejectionReason = obj.reason || '';
     var ss = getSpreadsheet();
     var sheet = ss.getSheetByName('申請'); // シート名を'申請'に修正
     
@@ -281,10 +282,11 @@ function approveRecord(obj) {
       throw new Error('この申請は既に処理されています（現在のステータス: ' + currentStatus + '）');
     }
     
+    var userId = sheet.getRange(rowNumber, 1).getValue(); // 利用者番号取得
+    var applyDays = sheet.getRange(rowNumber, 8).getValue() || 1; // 申請日数取得（H列）
+    
     // 却下の場合は有給残日数を復旧
     if (status === 'Rejected') {
-      var userId = sheet.getRange(rowNumber, 1).getValue(); // 利用者番号取得
-      var applyDays = sheet.getRange(rowNumber, 8).getValue() || 1; // 申請日数取得（H列）
       var masterSheet = ss.getSheetByName('マスター');
       
       if (masterSheet) {
@@ -312,7 +314,7 @@ function approveRecord(obj) {
           applyDate: Utilities.formatDate(sheet.getRange(rowNumber, 4).getValue(), 'JST', 'yyyy/MM/dd'),
           applyDays: applyDays
         };
-        var notifyResult = sendApprovalResultNotification(applicantData, status);
+        var notifyResult = sendApprovalResultNotification(applicantData, status, rejectionReason);
         console.log('承認結果通知結果:', notifyResult);
       }
     } catch (notifyError) {
