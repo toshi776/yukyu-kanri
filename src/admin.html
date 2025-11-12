@@ -275,6 +275,7 @@
     <button class="tab-button" onclick="showTab('url-management')">URL管理</button>
     <button class="tab-button" onclick="showTab('grant-management')">付与管理</button>
     <button class="tab-button" onclick="showTab('expiry-management')">失効管理</button>
+    <button class="tab-button" onclick="showTab('statistics')">統計レポート</button>
     <button class="tab-button" onclick="showTab('system-settings')">システム設定</button>
   </div>
   
@@ -951,6 +952,56 @@
       </div>
 
       <div id="expiryProcessStatus" style="margin: 20px 0; padding: 15px; border-radius: 5px; display: none;"></div>
+    </div>
+  </div>
+
+  <!-- 統計レポートタブ -->
+  <div id="statisticsTab" class="tab-content">
+    <h2>統計レポート</h2>
+
+    <div style="margin: 20px 0;">
+      <h3>全体統計</h3>
+      <div id="basicStatistics" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+        <div style="padding: 15px; background: #f5f5f5; border-radius: 5px;">
+          <div style="font-size: 14px; color: #666;">総従業員数</div>
+          <div id="totalEmployees" style="font-size: 24px; font-weight: bold; margin-top: 5px;">-</div>
+        </div>
+        <div style="padding: 15px; background: #f5f5f5; border-radius: 5px;">
+          <div style="font-size: 14px; color: #666;">平均残日数</div>
+          <div id="averageRemainingDays" style="font-size: 24px; font-weight: bold; margin-top: 5px;">-</div>
+        </div>
+        <div style="padding: 15px; background: #f5f5f5; border-radius: 5px;">
+          <div style="font-size: 14px; color: #666;">残日数5日以下</div>
+          <div id="lowRemainingCount" style="font-size: 24px; font-weight: bold; margin-top: 5px; color: #ff6b6b;">-</div>
+        </div>
+        <div style="padding: 15px; background: #f5f5f5; border-radius: 5px;">
+          <div style="font-size: 14px; color: #666;">総残日数</div>
+          <div id="totalRemainingDays" style="font-size: 24px; font-weight: bold; margin-top: 5px;">-</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin: 30px 0;">
+      <h3>事業所別統計</h3>
+      <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+        <thead>
+          <tr style="background: #4CAF50; color: white;">
+            <th style="padding: 12px; text-align: left;">事業所</th>
+            <th style="padding: 12px; text-align: right;">従業員数</th>
+            <th style="padding: 12px; text-align: right;">平均残日数</th>
+            <th style="padding: 12px; text-align: right;">総残日数</th>
+          </tr>
+        </thead>
+        <tbody id="divisionStatistics">
+          <tr><td colspan="4" style="text-align: center; padding: 20px; color: #666;">データを読み込み中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin: 30px 0;">
+      <button onclick="loadStatistics()" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">
+        統計を更新
+      </button>
     </div>
   </div>
 
@@ -1885,10 +1936,78 @@
         // 必要に応じて初期データロード
       }
 
+      // 統計レポートタブが選択された場合の初期化
+      if (tabName === 'statistics') {
+        console.log('📊 統計レポートタブが選択されました');
+        loadStatistics();
+      }
+
       // 失効管理タブが選択された場合の初期化
       if (tabName === 'expiry-management') {
         console.log('⏳ 失効管理タブが選択されました');
         // 必要に応じて初期データロード
+      }
+    }
+
+    // =============================
+    // 統計レポート機能のJavaScript
+    // =============================
+
+    function loadStatistics() {
+      console.log('📊 統計データ読み込み開始...');
+
+      google.script.run
+        .withSuccessHandler(function(stats) {
+          console.log('✅ 統計データ取得成功:', stats);
+          displayBasicStatistics(stats);
+        })
+        .withFailureHandler(function(error) {
+          console.error('❌ 統計データ取得エラー:', error);
+          alert('統計データの取得に失敗しました: ' + error.message);
+        })
+        .calculateBasicStatistics();
+    }
+
+    function displayBasicStatistics(stats) {
+      // 全体統計の表示
+      document.getElementById('totalEmployees').textContent = stats.totalEmployees || 0;
+      document.getElementById('averageRemainingDays').textContent =
+        stats.averageRemainingDays ? stats.averageRemainingDays.toFixed(1) + '日' : '-';
+      document.getElementById('lowRemainingCount').textContent =
+        (stats.lowRemainingCount || 0) + '名';
+      document.getElementById('totalRemainingDays').textContent =
+        (stats.totalRemainingDays || 0) + '日';
+
+      // 事業所別統計の表示
+      if (stats.divisionCounts) {
+        var tbody = document.getElementById('divisionStatistics');
+        var html = '';
+
+        var divisions = {
+          'R': 'ライズ',
+          'P': 'パロン',
+          'S': 'シエル',
+          'E': 'EBISU'
+        };
+
+        Object.keys(divisions).forEach(function(code) {
+          var count = stats.divisionCounts[code] || 0;
+          var avgDays = stats.divisionAverages && stats.divisionAverages[code]
+            ? stats.divisionAverages[code].toFixed(1)
+            : '-';
+          var totalDays = stats.divisionTotals && stats.divisionTotals[code]
+            ? stats.divisionTotals[code]
+            : '-';
+
+          html += '<tr style="border-bottom: 1px solid #ddd;">';
+          html += '<td style="padding: 12px;">' + divisions[code] + '</td>';
+          html += '<td style="padding: 12px; text-align: right;">' + count + '名</td>';
+          html += '<td style="padding: 12px; text-align: right;">' + avgDays + (avgDays !== '-' ? '日' : '') + '</td>';
+          html += '<td style="padding: 12px; text-align: right;">' + totalDays + (totalDays !== '-' ? '日' : '') + '</td>';
+          html += '</tr>';
+        });
+
+        tbody.innerHTML = html;
       }
     }
   </script>
