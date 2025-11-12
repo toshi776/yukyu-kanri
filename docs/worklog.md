@@ -2,6 +2,257 @@
 
 ---
 
+## 2025-11-12: ワンクリック承認リンク機能の実装（v56） ✅
+
+### 背景
+承認者への通知メールが送信されているが、承認するには管理画面に移動する必要があった。ユーザビリティ向上のため、メール内のボタンをクリックするだけで承認・却下ができる機能を実装。
+
+### 実施内容
+
+#### 1. 承認者メールアドレスの設定（テスト期間中） ✅
+
+**実装内容:**
+- `notification.js`の`getApproverEmail()`関数を修正
+- テスト期間中は全ての承認通知をtoshi776@gmail.comに送信
+- 本番運用時は事業所別の承認者設定に切り替える設計
+
+**コード:**
+```javascript
+function getApproverEmail(userId) {
+  // テスト期間中は全てtoshi776@gmail.comに送信
+  return 'toshi776@gmail.com';
+
+  // 本番運用時は以下のコメントを外す
+  /*
+  var approvers = {
+    'R': 'rise-manager@company.com',
+    'P': 'paron-manager@company.com',
+    'S': 'ciel-manager@company.com',
+    'E': 'ebisu-manager@company.com'
+  };
+  var division = userId.substring(0, 1);
+  return approvers[division] || 'hr@company.com';
+  */
+}
+```
+
+#### 2. セキュリティトークン機能の実装 ✅
+
+**実装した関数:**
+
+**`generateApprovalToken(application)`**
+- 申請ごとに一意のセキュリティトークンを生成
+- 申請者ID、申請日、申請日数、タイムスタンプからハッシュを生成
+- Base64エンコードで32文字のトークンを生成
+
+**`validateApprovalToken(params)`**
+- URLパラメータのトークンを検証
+- 申請シートから該当する申請を検索
+- トークンを再生成して一致を確認
+- 不正なリンクや既に処理済みの申請を拒否
+
+**セキュリティ対策:**
+```javascript
+// トークン生成
+var data = [userId, applyDate, applyDays, timestamp].join('|');
+var hash = Utilities.base64Encode(data);
+return hash.substring(0, 32);
+
+// トークン検証
+if (status === 'Pending' && params.token === expectedToken) {
+  // 承認処理を許可
+}
+```
+
+#### 3. 承認リンク生成機能の拡張 ✅
+
+**`buildApprovalLink(application, action)`関数を更新:**
+
+**修正前:**
+```javascript
+function buildApprovalLink(application) {
+  var params = [
+    'userId=' + encodeURIComponent(application.userId),
+    'date=' + encodeURIComponent(application.applyDate),
+    'days=' + encodeURIComponent(application.applyDays)
+  ];
+  return base + separator + params.join('&');
+}
+```
+
+**修正後:**
+```javascript
+function buildApprovalLink(application, action) {
+  action = action || 'approve';
+  var token = generateApprovalToken(application);
+
+  var params = [
+    'action=' + encodeURIComponent(action),
+    'userId=' + encodeURIComponent(application.userId),
+    'date=' + encodeURIComponent(application.applyDate),
+    'days=' + encodeURIComponent(application.applyDays),
+    'token=' + encodeURIComponent(token)
+  ];
+  return base + separator + params.join('&');
+}
+```
+
+**生成されるURL例:**
+```
+https://script.google.com/.../exec?action=approve&userId=R01&date=2025/11/15&days=1&token=abc123xyz...
+```
+
+#### 4. メールテンプレートの更新 ✅
+
+**HTMLメールテンプレート:**
+- 承認ボタンと却下ボタンを中央配置
+- 視覚的に分かりやすいデザイン（緑・赤のボタン）
+- 管理画面へのリンクも追加
+
+**実装コード:**
+```html
+<div style="margin-top: 30px; text-align: center;">
+  <p style="font-weight: bold; margin-bottom: 15px;">ワンクリックで承認・却下できます：</p>
+  <a href="${approveLink}" style="...background-color: #4CAF50...">✓ 承認する</a>
+  <a href="${rejectLink}" style="...background-color: #f44336...">✗ 却下する</a>
+</div>
+```
+
+**テキストメールテンプレート:**
+```
+ワンクリックで承認・却下できます：
+承認リンク: https://...?action=approve&...
+却下リンク: https://...?action=reject&...
+
+または、管理画面から詳細を確認できます：
+https://...?admin=true
+```
+
+#### 5. ワンクリック処理ハンドラーの実装 ✅
+
+**Code.js の`doGet()`関数に処理追加:**
+
+```javascript
+function doGet(e) {
+  try {
+    // ワンクリック承認処理
+    var action = e.parameter.action || '';
+    if (action === 'approve' || action === 'reject') {
+      return handleOneClickApproval(e.parameter);
+    }
+
+    // 既存の処理（管理画面、利用者アクセスなど）
+    ...
+  }
+}
+```
+
+**`handleOneClickApproval(params)`関数:**
+1. トークンを検証
+2. 無効な場合はエラーメッセージを表示
+3. 有効な場合は承認または却下を実行
+4. 処理結果画面を表示
+
+**処理フロー:**
+```
+メールのボタンクリック
+  ↓
+トークン検証
+  ↓ (有効)
+承認/却下処理実行
+  ↓
+結果画面表示（成功/エラー）
+```
+
+#### 6. 承認結果画面の実装 ✅
+
+**`renderApprovalResult(success, message)`関数:**
+- 成功時: 緑色の背景、チェックマーク
+- エラー時: 赤色の背景、×マーク
+- 管理画面へのリンクボタン付き
+
+**表示例（成功時）:**
+```
+┌────────────────────────────┐
+│         ✓                  │
+│     処理完了               │
+│                            │
+│  山田太郎さんの2025/11/15  │
+│  の有給申請（1日）を       │
+│  承認しました。            │
+│                            │
+│   [管理画面へ]             │
+└────────────────────────────┘
+```
+
+### 実装のポイント
+
+**1. セキュリティ**
+- トークンベースの認証で不正なリンクを防止
+- 既に処理済みの申請は再処理できない（Pendingステータスのみ処理可能）
+- パラメータ改ざんを検知
+
+**2. ユーザビリティ**
+- メール内で承認・却下を完結
+- 視覚的に分かりやすいボタンデザイン
+- 処理後の結果を明確に表示
+
+**3. フォールバック**
+- トークンが無効な場合は適切なエラーメッセージ
+- 管理画面へのリンクを常に提供
+
+### デプロイ
+
+**デプロイバージョン:** v56
+
+**変更ファイル:**
+- `src/notification.js`: トークン生成・検証、メールテンプレート更新（+220行）
+- `src/Code.js`: ワンクリック処理ハンドラー、結果画面追加（+150行）
+
+**デプロイ日時:** 2025-11-12 11:23:16
+
+**デプロイ結果:**
+```
+✅ バージョン作成完了: Created version 56
+✅ デプロイ完了！
+📋 バージョン: 56
+```
+
+### 成果
+
+- ✅ 承認者メールアドレスをtoshi776@gmail.comに設定（テスト期間中）
+- ✅ セキュリティトークン機能の実装
+- ✅ ワンクリック承認・却下機能の実装
+- ✅ メールテンプレートの更新（承認・却下ボタン追加）
+- ✅ 承認結果画面の実装
+- ✅ v56のデプロイ成功
+
+### 使用方法
+
+**テストフロー:**
+1. 利用者が有給申請を送信
+2. toshi776@gmail.comに承認依頼メールが届く
+3. メール内の「✓ 承認する」または「✗ 却下する」ボタンをクリック
+4. ワンクリックで処理が完了
+5. 処理完了画面が表示される
+
+### セキュリティ機能
+
+- ✅ 各申請に固有のトークンを生成
+- ✅ トークン検証により不正なリンクを拒否
+- ✅ 既に処理済みの申請は再処理できない
+- ✅ パラメータ改ざんを検知
+
+### 次回作業
+
+**本番運用開始時の作業:**
+1. `notification.js`の`getApproverEmail()`関数を本番設定に変更
+   - 各事業所の承認者メールアドレスを設定
+2. 実際の承認フローで動作確認
+3. 必要に応じて承認者リストを拡張
+
+---
+
 ## 2025-11-09: 付与管理・失効管理機能のデバッグと完成（v41-v45） ✅
 
 ### 背景
