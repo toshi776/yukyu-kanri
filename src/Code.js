@@ -1,32 +1,155 @@
 function doGet(e) {
   console.log('doGet called with parameters:', e.parameter);
-  
+
   try {
+    // ワンクリック承認処理
+    var action = e.parameter.action || '';
+    if (action === 'approve' || action === 'reject') {
+      return handleOneClickApproval(e.parameter);
+    }
+
     // 管理画面アクセス（管理者用）
     var adminParam = e.parameter.admin || '';
     if (adminParam.toLowerCase() === 'true') {
       return renderAdminPage();
     }
-    
+
     // URLキーベースのアクセス（利用者用）
     var urlKey = e.parameter.key || '';
     if (urlKey) {
       return handleUserAccess(urlKey);
     }
-    
+
     // 従来のユーザーIDアクセス（後方互換性）
     var userId = e.parameter.userID || e.parameter.userId || '';
     if (userId) {
       return handleLegacyUserAccess(userId);
     }
-    
+
     // パラメータなしの場合はアクセス方法を案内
     return renderAccessGuide();
-    
+
   } catch (error) {
     console.error('doGet エラー:', error);
     return renderErrorPage('システムエラーが発生しました: ' + error.message);
   }
+}
+
+/**
+ * ワンクリック承認処理
+ */
+function handleOneClickApproval(params) {
+  try {
+    console.log('ワンクリック承認処理開始:', params);
+
+    // トークンを検証
+    var validationResult = validateApprovalToken(params);
+
+    if (!validationResult || !validationResult.valid) {
+      console.log('無効なトークン:', params);
+      return renderApprovalResult(false, '無効なリンクです。リンクの有効期限が切れているか、既に処理済みの可能性があります。');
+    }
+
+    var action = params.action;
+    var isApprove = action === 'approve';
+    var rowNumber = validationResult.rowNumber;
+    var application = validationResult.application;
+
+    console.log('承認処理実行:', { action, rowNumber, application });
+
+    // 承認または却下を実行
+    var result;
+    if (isApprove) {
+      result = approveRecord({ rowNumber: rowNumber, status: 'Approved' });
+    } else {
+      result = rejectRecord({ rowNumber: rowNumber, reason: 'メールから却下' });
+    }
+
+    if (result.success) {
+      var message = isApprove ?
+        `${application.userName}さんの${application.applyDate}の有給申請（${application.applyDays}日）を承認しました。` :
+        `${application.userName}さんの${application.applyDate}の有給申請（${application.applyDays}日）を却下しました。`;
+
+      console.log('承認処理成功:', message);
+      return renderApprovalResult(true, message);
+    } else {
+      console.error('承認処理失敗:', result.message);
+      return renderApprovalResult(false, '処理中にエラーが発生しました: ' + result.message);
+    }
+
+  } catch (error) {
+    console.error('ワンクリック承認処理エラー:', error);
+    return renderApprovalResult(false, 'システムエラーが発生しました: ' + error.message);
+  }
+}
+
+/**
+ * 承認結果画面を表示
+ */
+function renderApprovalResult(success, message) {
+  var color = success ? '#4CAF50' : '#f44336';
+  var bgColor = success ? '#d4edda' : '#f8d7da';
+  var borderColor = success ? '#c3e6cb' : '#f5c6cb';
+  var icon = success ? '✓' : '✗';
+  var title = success ? '処理完了' : 'エラー';
+
+  var html = `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${title} - 有給管理システム</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+      .container { max-width: 600px; margin: 50px auto; text-align: center; }
+      .result {
+        background: ${bgColor};
+        border: 2px solid ${borderColor};
+        padding: 30px;
+        border-radius: 8px;
+        color: ${color};
+      }
+      .icon {
+        font-size: 64px;
+        margin-bottom: 20px;
+        color: ${color};
+      }
+      h1 { color: ${color}; margin-bottom: 20px; }
+      .message {
+        font-size: 16px;
+        margin: 20px 0;
+        color: #333;
+      }
+      .button {
+        display: inline-block;
+        margin-top: 30px;
+        padding: 12px 24px;
+        background: ${color};
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        font-weight: bold;
+      }
+      .button:hover {
+        opacity: 0.9;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="result">
+        <div class="icon">${icon}</div>
+        <h1>${title}</h1>
+        <div class="message">${message}</div>
+        <a href="?admin=true" class="button">管理画面へ</a>
+      </div>
+    </div>
+  </body>
+  </html>`;
+
+  return HtmlService.createHtmlOutput(html)
+    .setTitle(title + ' - 有給管理システム');
 }
 
 /**

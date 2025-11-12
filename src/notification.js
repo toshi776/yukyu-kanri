@@ -12,7 +12,7 @@ var NOTIFICATION_CONFIG = {
   TEST_MODE: false, // 開発時はtrue、本番時はfalse
   ENABLE_NOTIFICATIONS: true, // 通知機能の有効/無効切り替え
   HR_EMAIL: 'hr@company.com',
-  APPROVAL_BASE_URL: '',
+  APPROVAL_BASE_URL: 'https://script.google.com/macros/s/AKfycbyJNqVvi4wYJwjXEc5Y9QF7qV-08M9uk4396sAo7Lu0i0lsY2RlCtbAPVMWaeYiKeKn/exec',
   CC_HR_ON_APPLICATION: true,
   CC_MANAGER_ON_APPROVAL: true,
   CC_MANAGER_ON_GRANT: true,
@@ -271,21 +271,31 @@ function sendLowRemainingDaysAlert(employee) {
  */
 function generateApplicationNotificationHtml(application, approvalLink) {
   var daysText = application.applyDays === 0.5 ? '0.5日（半日）' : '1日';
-  var actionHtml = approvalLink ? `
-    <p style="margin-top: 20px;">
-      <a href="${approvalLink}" style="display: inline-block; padding: 10px 16px; background-color: #4CAF50; color: #fff; text-decoration: none; border-radius: 4px;">承認画面を開く</a>
+
+  // 承認リンクと却下リンクを生成
+  var approveLink = buildApprovalLink(application, 'approve');
+  var rejectLink = buildApprovalLink(application, 'reject');
+
+  var actionHtml = (approveLink && rejectLink) ? `
+    <div style="margin-top: 30px; text-align: center;">
+      <p style="font-weight: bold; margin-bottom: 15px;">ワンクリックで承認・却下できます：</p>
+      <a href="${approveLink}" style="display: inline-block; padding: 12px 24px; margin: 0 10px; background-color: #4CAF50; color: #fff; text-decoration: none; border-radius: 4px; font-weight: bold;">✓ 承認する</a>
+      <a href="${rejectLink}" style="display: inline-block; padding: 12px 24px; margin: 0 10px; background-color: #f44336; color: #fff; text-decoration: none; border-radius: 4px; font-weight: bold;">✗ 却下する</a>
+    </div>
+    <p style="margin-top: 20px; text-align: center; color: #666; font-size: 13px;">
+      または、<a href="${NOTIFICATION_CONFIG.APPROVAL_BASE_URL}?admin=true">管理画面</a>から詳細を確認できます。
     </p>
   ` : `
     <p style="margin-top: 20px;">管理画面にアクセスして承認・却下の処理をお願いします。</p>
   `;
-  
+
   var html = `
   <html>
   <body style="font-family: Arial, sans-serif; color: #333;">
     <h2 style="color: #4CAF50;">有給申請の承認依頼</h2>
-    
+
     <p>以下の有給申請について承認をお願いします。</p>
-    
+
     <table style="border-collapse: collapse; margin: 20px 0;">
       <tr>
         <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f5f5f5;">申請者</td>
@@ -305,14 +315,14 @@ function generateApplicationNotificationHtml(application, approvalLink) {
       </tr>
     </table>
     ${actionHtml}
-    
+
     <p style="color: #666; font-size: 12px; margin-top: 40px;">
       このメールは有給管理システムから自動送信されています。<br>
       返信はできませんので、ご質問がある場合は人事部までお問い合わせください。
     </p>
   </body>
   </html>`;
-  
+
   return html;
 }
 
@@ -321,10 +331,19 @@ function generateApplicationNotificationHtml(application, approvalLink) {
  */
 function generateApplicationNotificationText(application, approvalLink) {
   var daysText = application.applyDays === 0.5 ? '0.5日（半日）' : '1日';
-  var actionLine = approvalLink ?
-    '承認リンク: ' + approvalLink :
+
+  var approveLink = buildApprovalLink(application, 'approve');
+  var rejectLink = buildApprovalLink(application, 'reject');
+
+  var actionLine = (approveLink && rejectLink) ?
+    `ワンクリックで承認・却下できます：
+承認リンク: ${approveLink}
+却下リンク: ${rejectLink}
+
+または、管理画面から詳細を確認できます：
+${NOTIFICATION_CONFIG.APPROVAL_BASE_URL}?admin=true` :
     '管理画面にアクセスして承認・却下の処理をお願いします。';
-  
+
   return `有給申請の承認依頼
 
 以下の有給申請について承認をお願いします。
@@ -498,23 +517,25 @@ ${employee.remaining <= 3 ?
  * 承認者のメールアドレスを取得
  */
 function getApproverEmail(userId) {
-  // 実際の環境では適切なロジックに変更
-  // 例: マスターシートから上司情報を取得
-  
-  if (NOTIFICATION_CONFIG.TEST_MODE) {
-    return 'approver@test.com';
-  }
-  
-  // 事業所別の承認者設定（デモ版）
+  // テスト期間中は全てtoshi776@gmail.comに送信
+  // 本番運用開始後は、事業所別の承認者設定に変更する
+
+  // テスト期間中の設定
+  return 'toshi776@gmail.com';
+
+  // 本番運用時は以下のコメントを外して上記の1行を削除
+  /*
+  // 事業所別の承認者設定（本番版）
   var approvers = {
     'R': 'rise-manager@company.com',
-    'P': 'paron-manager@company.com', 
+    'P': 'paron-manager@company.com',
     'S': 'ciel-manager@company.com',
     'E': 'ebisu-manager@company.com'
   };
-  
+
   var division = userId.substring(0, 1);
   return approvers[division] || 'hr@company.com';
+  */
 }
 
 /**
@@ -534,20 +555,109 @@ function getEmployeeEmail(userId) {
 
 /**
  * 承認リンクを生成
+ * @param {Object} application - 申請情報
+ * @param {string} action - アクション ('approve' または 'reject')
+ * @return {string} 承認リンク
  */
-function buildApprovalLink(application) {
+function buildApprovalLink(application, action) {
   if (!NOTIFICATION_CONFIG.APPROVAL_BASE_URL) {
     return '';
   }
-  
+
+  action = action || 'approve';
+
+  // セキュリティトークンを生成
+  var token = generateApprovalToken(application);
+
   var base = NOTIFICATION_CONFIG.APPROVAL_BASE_URL;
   var separator = base.indexOf('?') === -1 ? '?' : '&';
   var params = [
+    'action=' + encodeURIComponent(action),
     'userId=' + encodeURIComponent(application.userId || ''),
     'date=' + encodeURIComponent(application.applyDate || ''),
-    'days=' + encodeURIComponent(application.applyDays || 0)
+    'days=' + encodeURIComponent(application.applyDays || 0),
+    'token=' + encodeURIComponent(token)
   ];
   return base + separator + params.join('&');
+}
+
+/**
+ * 承認トークンを生成
+ */
+function generateApprovalToken(application) {
+  var data = [
+    application.userId,
+    application.applyDate,
+    application.applyDays,
+    new Date(application.timestamp).getTime()
+  ].join('|');
+
+  // 簡易的なハッシュを生成（GASではMD5等が使えないため）
+  var hash = Utilities.base64Encode(data);
+  return hash.substring(0, 32);
+}
+
+/**
+ * 承認トークンを検証
+ */
+function validateApprovalToken(params) {
+  try {
+    // トークンが提供されているか確認
+    if (!params.token) {
+      return false;
+    }
+
+    // 申請シートから該当する申請を検索
+    var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    var appSheet = ss.getSheetByName('申請');
+
+    if (!appSheet) {
+      return false;
+    }
+
+    var data = appSheet.getDataRange().getValues();
+
+    // ヘッダーをスキップして検索
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var userId = String(row[0] || '');
+      var applyDate = row[3] ? Utilities.formatDate(new Date(row[3]), 'JST', 'yyyy/MM/dd') : '';
+      var applyDays = Number(row[7] || 0);
+      var timestamp = row[4];
+      var status = String(row[5] || '');
+
+      // パラメータと一致する申請を検索
+      if (userId === params.userId &&
+          applyDate === params.date &&
+          applyDays == params.days &&
+          status === 'Pending') {
+
+        // トークンを再生成して検証
+        var application = {
+          userId: userId,
+          applyDate: applyDate,
+          applyDays: applyDays,
+          timestamp: timestamp
+        };
+
+        var expectedToken = generateApprovalToken(application);
+
+        if (params.token === expectedToken) {
+          return {
+            valid: true,
+            rowNumber: i + 1,
+            application: application
+          };
+        }
+      }
+    }
+
+    return false;
+
+  } catch (error) {
+    console.error('トークン検証エラー:', error);
+    return false;
+  }
 }
 
 /**
