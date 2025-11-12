@@ -131,7 +131,7 @@ function getApplications(params) {
     }
     
     console.log('処理後のデータ件数:', data.length);
-    
+
     // フィルター処理
     if (params && params.filter) {
       var f = params.filter.toLowerCase();
@@ -139,21 +139,28 @@ function getApplications(params) {
         return r.userId.toLowerCase().indexOf(f) !== -1 || r.userName.toLowerCase().indexOf(f) !== -1;
       });
     }
-    
+
     if (params && params.status) {
-      data = data.filter(function(r) { 
-        return r.status === params.status; 
+      data = data.filter(function(r) {
+        return r.status === params.status;
       });
     }
-    
-    // ページング
-    var pageSize = 20;
+
+    // 申請日時の降順でソート（最新の申請が上に）
+    data.sort(function(a, b) {
+      var dateA = new Date(a.timestamp);
+      var dateB = new Date(b.timestamp);
+      return dateB - dateA; // 降順
+    });
+
+    // ページング（100件に増量）
+    var pageSize = 100;
     var page = (params && params.page) ? Number(params.page) : 1;
     var total = data.length;
     var totalPages = Math.ceil(total / pageSize);
     var start = (page - 1) * pageSize;
     var pageData = data.slice(start, start + pageSize);
-    
+
     console.log('最終的な返却データ件数:', pageData.length);
     
     return { 
