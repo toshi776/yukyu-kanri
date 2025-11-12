@@ -269,13 +269,7 @@ function approveRecord(obj) {
     console.log('approveRecord開始 - パラメータ:', JSON.stringify(obj));
 
     // 最大10秒間ロックを試行
-    if (!lock.waitLock(10000)) {
-      console.error('ロック取得に失敗しました');
-      return {
-        success: false,
-        message: '他の処理が実行中です。しばらくしてから再度お試しください。'
-      };
-    }
+    lock.waitLock(10000);
 
     var rowNumber = obj.rowNumber;
     var status = obj.status || 'Approved';
