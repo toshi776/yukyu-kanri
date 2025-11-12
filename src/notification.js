@@ -16,6 +16,11 @@ var NOTIFICATION_CONFIG = {
   CC_HR_ON_APPLICATION: true,
   CC_MANAGER_ON_APPROVAL: true,
   CC_MANAGER_ON_GRANT: true,
+  EXPIRY_WARNING_DEFINITIONS: [
+    { days: 90, label: '3ヶ月前予告' },
+    { days: 30, label: '1ヶ月前最終予告' }
+  ],
+  EXPIRY_WARNING_LOG_KEY: 'EXPIRY_WARNING_LOG',
   NOTIFICATION_SETTINGS: {
     APPLICATION: true,    // 申請通知
     APPROVAL: true,       // 承認結果通知
@@ -785,6 +790,139 @@ function sendGrantNotification(grantData) {
 }
 
 /**
+ * 失効予告メールを送信（3ヶ月前 / 1ヶ月前）
+ * @param {Object} options - 任意のオプション（baseDateなど）
+ * @return {Object} 送信結果
+ */
+function sendExpiryWarningNotifications(options) {
+  options = options || {};
+
+  try {
+    console.log('失効予告通知チェック開始');
+
+    if (!NOTIFICATION_CONFIG.ENABLE_NOTIFICATIONS || !NOTIFICATION_CONFIG.NOTIFICATION_SETTINGS.EXPIRY) {
+      return {
+        success: true,
+        message: '失効通知が無効になっています',
+        disabled: true
+      };
+    }
+
+    var baseDate = options.baseDate ? new Date(options.baseDate) : new Date();
+    baseDate.setHours(0, 0, 0, 0);
+
+    var definitions = (NOTIFICATION_CONFIG.EXPIRY_WARNING_DEFINITIONS || []).slice();
+    if (definitions.length === 0) {
+      definitions = [
+        { days: 90, label: '3ヶ月前予告' },
+        { days: 30, label: '1ヶ月前最終予告' }
+      ];
+    }
+
+    // daysの大きい順で処理し、閾値ごとの対象期間が重複しないようにする
+    definitions.sort(function(a, b) { return b.days - a.days; });
+
+    var warningLog = loadExpiryWarningLog();
+    var totalTargets = 0;
+    var sentCount = 0;
+    var details = [];
+
+    for (var i = 0; i < definitions.length; i++) {
+      var def = definitions[i];
+      var minDaysExclusive = i < definitions.length - 1 ? definitions[i + 1].days : 0;
+      var targets = getExpiryWarningTargets(def.days, minDaysExclusive, baseDate);
+      totalTargets += targets.length;
+
+      targets.forEach(function(target) {
+        var logKey = buildExpiryWarningKey(target, def);
+        if (warningLog[logKey]) {
+          return;
+        }
+
+        var result = sendExpiryWarningEmail(target, def);
+        details.push({
+          threshold: def.label,
+          userId: target.userId,
+          result: result
+        });
+
+        if (result.success) {
+          sentCount++;
+          warningLog[logKey] = new Date().toISOString();
+        }
+      });
+    }
+
+    saveExpiryWarningLog(warningLog);
+
+    return {
+      success: true,
+      sentCount: sentCount,
+      totalTargets: totalTargets,
+      details: details,
+      message: sentCount + '件の失効予告通知を送信しました'
+    };
+  } catch (error) {
+    console.error('失効予告通知エラー:', error);
+    return {
+      success: false,
+      message: '失効予告通知に失敗しました: ' + error.message
+    };
+  }
+}
+
+/**
+ * 失効予告メールを1件送信
+ * @param {Object} target - 通知対象
+ * @param {Object} definition - 閾値定義
+ * @return {Object} 送信結果
+ */
+function sendExpiryWarningEmail(target, definition) {
+  try {
+    if (NOTIFICATION_CONFIG.TEST_MODE) {
+      return {
+        success: true,
+        message: 'テストモード: 送信をスキップしました',
+        testMode: true
+      };
+    }
+
+    var employeeEmail = getEmployeeEmail(target.userId);
+    if (!employeeEmail) {
+      throw new Error('社員のメールアドレスが見つかりません');
+    }
+
+    var subject = NOTIFICATION_CONFIG.SUBJECT_PREFIX + '有給失効予定のお知らせ（' + definition.label + '）';
+    var htmlBody = generateExpiryWarningHtml(target, definition);
+    var plainBody = generateExpiryWarningText(target, definition);
+
+    GmailApp.sendEmail(
+      employeeEmail,
+      subject,
+      plainBody,
+      {
+        htmlBody: htmlBody,
+        name: '有給管理システム'
+      }
+    );
+
+    console.log('失効予告メール送信完了:', target.userId, definition.label);
+
+    return {
+      success: true,
+      recipient: employeeEmail,
+      threshold: definition.label
+    };
+  } catch (error) {
+    console.error('失効予告メール送信エラー:', error);
+    return {
+      success: false,
+      message: '失効予告メール送信に失敗しました: ' + error.message
+    };
+  }
+}
+
+/**
  * 失効通知メールを送信
  * @param {Array} expiredUsers - 失効対象者リスト
  * @return {Object} 送信結果
@@ -995,11 +1133,186 @@ function generateExpiryNotificationText(expiredUser) {
 }
 
 /**
+ * 失効予告通知のHTMLメール生成
+ */
+function generateExpiryWarningHtml(target, definition) {
+  var highlightColor = definition.days <= 30 ? '#f44336' : '#ff9800';
+  var daysText = target.daysUntilExpiry + '日後に失効予定です';
+
+  return `
+  <html>
+  <body style="font-family: Arial, sans-serif; color: #333;">
+    <h2 style="color: ${highlightColor};">有給失効予定のお知らせ（${definition.label}）</h2>
+    <p>${target.userName} 様の有給休暇がまもなく失効します。</p>
+    <table style="border-collapse: collapse; margin: 20px 0;">
+      <tr>
+        <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f5f5f5;">現在の残日数</td>
+        <td style="padding: 8px; border: 1px solid #ddd; color: ${highlightColor}; font-size: 18px; font-weight: bold;">${target.remainingDays}日</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f5f5f5;">失効予定日</td>
+        <td style="padding: 8px; border: 1px solid #ddd;">${target.expiryDateText}（${daysText}）</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f5f5f5;">対象付与</td>
+        <td style="padding: 8px; border: 1px solid #ddd;">${target.grantDateText || '-'} / ${target.grantType || '-'} / ${target.grantDays}日</td>
+      </tr>
+    </table>
+    <p>計画的に有給を取得し、失効を防いでください。</p>
+    <p style="color: #666; font-size: 12px; margin-top: 40px;">
+      このメールは有給管理システムから自動送信されています。<br>
+      返信はできませんので、ご質問がある場合は人事部までお問い合わせください。
+    </p>
+  </body>
+  </html>`;
+}
+
+/**
+ * 失効予告通知のテキストメール生成
+ */
+function generateExpiryWarningText(target, definition) {
+  return `有給失効予定のお知らせ（${definition.label}）
+
+${target.userName} 様の有給休暇がまもなく失効します。
+
+現在の残日数: ${target.remainingDays}日
+失効予定日: ${target.expiryDateText}（あと${target.daysUntilExpiry}日）
+対象の付与: ${target.grantDateText || '-'} / ${target.grantType || '-'} / ${target.grantDays}日
+
+計画的に有給を取得し、失効を防いでください。
+
+※このメールは有給管理システムから自動送信されています。
+返信はできませんので、ご質問がある場合は人事部までお問い合わせください。`;
+}
+
+/**
+ * 失効予告対象者を取得
+ * @param {number} maxDays - 上限日数
+ * @param {number} minDaysExclusive - 下限日数（この値以下は除外）
+ * @param {Date} baseDate - 判定基準日
+ * @return {Array} 対象者リスト
+ */
+function getExpiryWarningTargets(maxDays, minDaysExclusive, baseDate) {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var masterSheet = ss.getSheetByName('マスター');
+  var grantHistorySheet = ss.getSheetByName('付与履歴');
+
+  if (!masterSheet || !grantHistorySheet) {
+    return [];
+  }
+
+  var masterData = masterSheet.getDataRange().getValues();
+  var grantData = grantHistorySheet.getDataRange().getValues();
+
+  var userNameMap = {};
+  for (var i = 1; i < masterData.length; i++) {
+    var masterRow = masterData[i];
+    var masterUserId = String(masterRow[0] || '');
+    if (!masterUserId) continue;
+    userNameMap[masterUserId] = String(masterRow[1] || masterUserId);
+  }
+
+  var today = new Date(baseDate || new Date());
+  today.setHours(0, 0, 0, 0);
+  var targets = [];
+  var MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+  for (var j = 1; j < grantData.length; j++) {
+    var row = grantData[j];
+    var userId = String(row[0] || '');
+    if (!userId) {
+      continue;
+    }
+
+    var expiryDate = new Date(row[3]);
+    if (isNaN(expiryDate.getTime())) {
+      continue;
+    }
+    expiryDate.setHours(0, 0, 0, 0);
+
+    var remainingDays = Number(row[4] || 0);
+    if (remainingDays <= 0) {
+      continue;
+    }
+
+    var daysUntilExpiry = Math.ceil((expiryDate - today) / MS_PER_DAY);
+    if (daysUntilExpiry <= 0 || daysUntilExpiry > maxDays || daysUntilExpiry <= minDaysExclusive) {
+      continue;
+    }
+
+    targets.push({
+      userId: userId,
+      userName: userNameMap[userId] || userId,
+      remainingDays: remainingDays,
+      expiryDate: expiryDate,
+      expiryDateValue: expiryDate.getTime(),
+      expiryDateText: formatDateForNotification(expiryDate),
+      grantDate: row[1],
+      grantDateText: formatDateForNotification(row[1]),
+      grantType: row[5] || '-',
+      grantDays: Number(row[2] || 0),
+      daysUntilExpiry: daysUntilExpiry
+    });
+  }
+
+  targets.sort(function(a, b) {
+    return a.expiryDateValue - b.expiryDateValue;
+  });
+
+  return targets;
+}
+
+function formatDateForNotification(date) {
+  if (!date) {
+    return '-';
+  }
+  try {
+    var d = new Date(date);
+    if (isNaN(d.getTime())) {
+      return '-';
+    }
+    return Utilities.formatDate(d, 'JST', 'yyyy/MM/dd');
+  } catch (error) {
+    return '-';
+  }
+}
+
+function loadExpiryWarningLog() {
+  var key = NOTIFICATION_CONFIG.EXPIRY_WARNING_LOG_KEY || 'EXPIRY_WARNING_LOG';
+  var saved = PropertiesService.getScriptProperties().getProperty(key);
+  if (!saved) {
+    return {};
+  }
+  try {
+    return JSON.parse(saved);
+  } catch (error) {
+    console.warn('失効予告ログの読み込みに失敗しました。再初期化します。');
+    return {};
+  }
+}
+
+function saveExpiryWarningLog(log) {
+  var key = NOTIFICATION_CONFIG.EXPIRY_WARNING_LOG_KEY || 'EXPIRY_WARNING_LOG';
+  PropertiesService.getScriptProperties().setProperty(key, JSON.stringify(log || {}));
+}
+
+function buildExpiryWarningKey(target, definition) {
+  return [
+    target.userId,
+    target.expiryDateValue,
+    definition && definition.days ? definition.days : 'UNKNOWN'
+  ].join('_');
+}
+
+/**
  * 通知設定を管理する関数
  */
 function updateNotificationSettings(settings) {
   try {
     console.log('通知設定更新:', settings);
+    
+    // ランタイム設定を即時反映
+    NOTIFICATION_CONFIG.NOTIFICATION_SETTINGS = Object.assign({}, NOTIFICATION_CONFIG.NOTIFICATION_SETTINGS, settings);
     
     // 設定をPropertiesServiceに保存
     PropertiesService.getScriptProperties().setProperty(
@@ -1031,12 +1344,14 @@ function getNotificationSettings() {
     
     if (savedSettings) {
       var settings = JSON.parse(savedSettings);
+      NOTIFICATION_CONFIG.NOTIFICATION_SETTINGS = Object.assign({}, NOTIFICATION_CONFIG.NOTIFICATION_SETTINGS, settings);
       return {
         success: true,
         settings: settings,
         message: '通知設定を取得しました'
       };
     } else {
+      NOTIFICATION_CONFIG.NOTIFICATION_SETTINGS = Object.assign({}, NOTIFICATION_CONFIG.NOTIFICATION_SETTINGS);
       return {
         success: true,
         settings: NOTIFICATION_CONFIG.NOTIFICATION_SETTINGS,

@@ -300,7 +300,15 @@ function runDailyProcess() {
       process: '残日数アラート',
       result: alertResult
     });
-    
+
+    // 4. 失効予告通知チェック
+    console.log('4. 失効予告通知チェック');
+    var expiryWarningResult = sendExpiryWarningNotifications();
+    results.push({
+      process: '失効予告通知',
+      result: expiryWarningResult
+    });
+
     // 処理結果をログに記録
     logDailyProcessResult(results);
     

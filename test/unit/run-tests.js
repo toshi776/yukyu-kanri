@@ -602,6 +602,120 @@ test('sendGrantNotification: 付与通知で上長にも共有', () => {
   assert.strictEqual(sentEmails[0].options.cc, 'rise-manager@company.com', '上長共有が付与されていません');
 });
 
+test('sendExpiryWarningNotifications: 3ヶ月/1ヶ月予告と重複防止', () => {
+  const baseMaster = [
+    ['利用者番号', '利用者名', '残有給日数', '備考', '入社日', '週所定労働日数', '初回付与日', '最新年次付与日'],
+    ['R01', '三ヶ月太郎', 12, '', new Date('2020-04-01'), 5, '', ''],
+    ['R02', '最終花子', 4, '', new Date('2021-04-01'), 5, '', '']
+  ];
+  const grantHistory = [
+    ['利用者番号', '付与日', '付与日数', '失効日', '残日数', '付与タイプ', '勤続年数', '作成日時'],
+    ['R01', new Date('2024-05-15'), 12, new Date('2025-05-15'), 12, '年次', 2, new Date('2024-05-15')],
+    ['R02', new Date('2023-03-25'), 10, new Date('2025-03-25'), 4, '年次', 1, new Date('2023-03-25')]
+  ];
+
+  const { context, sentEmails } = createNotificationContext({
+    'マスター': baseMaster,
+    '付与履歴': grantHistory
+  });
+
+  const firstRun = context.sendExpiryWarningNotifications({ baseDate: new Date('2025-03-01') });
+  assert.ok(firstRun.success, '初回の失効予告送信が失敗しました');
+  assert.strictEqual(firstRun.sentCount, 2, '閾値ごとの送信数が想定と異なります');
+  assert.strictEqual(sentEmails.length, 2, '送信メール件数が一致しません');
+  assert.strictEqual(sentEmails[0].to, 'r01@company.com', '3ヶ月前予告の宛先が不正です');
+  assert.strictEqual(sentEmails[1].to, 'r02@company.com', '1ヶ月前予告の宛先が不正です');
+
+  const duplicateRun = context.sendExpiryWarningNotifications({ baseDate: new Date('2025-03-02') });
+  assert.strictEqual(duplicateRun.sentCount, 0, '同一期間で重複送信されています');
+  assert.strictEqual(sentEmails.length, 2, '重複送信でメール数が増えています');
+
+  const finalRun = context.sendExpiryWarningNotifications({ baseDate: new Date('2025-04-20') });
+  assert.strictEqual(finalRun.sentCount, 1, '1ヶ月前の最終予告が送信されていません');
+  assert.strictEqual(sentEmails.length, 3, '最終予告のメール数が一致しません');
+  assert.strictEqual(sentEmails[2].to, 'r01@company.com', '最終予告の宛先が不正です');
+
+  const finalDuplicate = context.sendExpiryWarningNotifications({ baseDate: new Date('2025-04-21') });
+  assert.strictEqual(finalDuplicate.sentCount, 0, '最終予告が重複送信されています');
+  assert.strictEqual(sentEmails.length, 3, '最終予告後にメール数が増えています');
+});
+
+test('calculateApplicationStatistics: 期間内のステータス集計', () => {
+  const applySheet = [
+    ['利用者番号', '氏名', '残', '申請日', '申請日時', '状態', '備考', '日数'],
+    ['R01', 'ライズ太郎', 5, new Date('2025-04-05'), new Date('2025-04-01'), 'Approved', '', 1],
+    ['P01', 'パロン花子', 4, new Date('2025-04-10'), new Date('2025-04-05'), 'Rejected', '', 2],
+    ['S01', 'シエル次郎', 6, new Date('2025-05-02'), new Date('2025-05-02'), 'Pending', '', 0.5]
+  ];
+
+  const { context, mockSpreadsheet } = createStatisticsContext({ '申請': applySheet });
+  const sheet = mockSpreadsheet.getSheetByName('申請');
+  const start = new Date('2025-04-01');
+  const end = new Date('2025-05-01');
+  const stats = context.calculateApplicationStatistics(sheet, start, end);
+
+  assert.strictEqual(stats.totalApplications, 2, '期間内の申請件数が一致しません');
+  assert.strictEqual(stats.approvedApplications, 1, '承認件数が一致しません');
+  assert.strictEqual(stats.rejectedApplications, 1, '却下件数が一致しません');
+  assert.strictEqual(stats.pendingApplications, 0, '保留件数が一致しません');
+  assert.strictEqual(stats.totalAppliedDays, 3, '申請日数合計が一致しません');
+  assert.strictEqual(stats.averageApplicationDays, 1.5, '平均申請日数が一致しません');
+  assert.strictEqual(stats.approvalRate, 50, '承認率が一致しません');
+});
+
+test('calculateGrantStatistics: 種別別カウント', () => {
+  const grantHistory = [
+    ['利用者番号', '付与日', '付与日数', '失効日', '残日数', '付与タイプ', '勤続年数', '作成日時'],
+    ['R01', new Date('2025-04-02'), 10, new Date('2027-04-02'), 10, '初回', 0.5, new Date('2025-04-02')],
+    ['P01', new Date('2025-04-15'), 12, new Date('2027-04-15'), 12, '年次', 2, new Date('2025-04-15')],
+    ['S01', new Date('2025-05-05'), 14, new Date('2027-05-05'), 14, '年次', 3, new Date('2025-05-05')]
+  ];
+
+  const { context, mockSpreadsheet } = createStatisticsContext({ '付与履歴': grantHistory });
+  const sheet = mockSpreadsheet.getSheetByName('付与履歴');
+  const start = new Date('2025-04-01');
+  const end = new Date('2025-05-01');
+  const stats = context.calculateGrantStatistics(sheet, start, end);
+
+  assert.strictEqual(stats.totalGrants, 2, '期間内の付与件数が一致しません');
+  assert.strictEqual(stats.totalGrantedDays, 22, '付与日数合計が一致しません');
+  assert.strictEqual(stats.initialGrants, 1, '初回付与件数が一致しません');
+  assert.strictEqual(stats.annualGrants, 1, '年次付与件数が一致しません');
+  assert.strictEqual(stats.averageGrantDays, 11, '平均付与日数が一致しません');
+});
+
+test('calculateDivisionStatistics: 事業所別集計', () => {
+  const masterSheet = [
+    ['利用者番号', '利用者名', '残有給日数', '備考', '入社日', '週所定労働日数', '初回付与日', '最新年次付与日'],
+    ['R01', 'ライズ太郎', 5, '', new Date('2023-04-01'), 5, '', ''],
+    ['R02', 'ライズ次郎', 10, '', new Date('2022-04-01'), 5, '', ''],
+    ['P01', 'パロン花子', 4, '', new Date('2023-07-01'), 4, '', ''],
+    ['S01', 'シエル三郎', 8, '', new Date('2023-08-01'), 3, '', '']
+  ];
+  const applySheet = [
+    ['利用者番号', '氏名', '残', '申請日', '申請日時', '状態', '備考', '日数'],
+    ['R01', 'ライズ太郎', 5, new Date('2025-04-05'), new Date('2025-04-05'), 'Approved', '', 1],
+    ['P01', 'パロン花子', 4, new Date('2025-04-10'), new Date('2025-04-10'), 'Approved', '', 2],
+    ['S01', 'シエル三郎', 8, new Date('2025-05-10'), new Date('2025-05-10'), 'Approved', '', 1]
+  ];
+
+  const { context } = createStatisticsContext({
+    'マスター': masterSheet,
+    '申請': applySheet
+  });
+
+  const start = new Date('2025-04-01');
+  const end = new Date('2025-05-01');
+  const divisions = context.calculateDivisionStatistics(start, end);
+
+  assert.strictEqual(divisions.R.employees, 2, 'ライズ事業所の従業員数が一致しません');
+  assert.strictEqual(divisions.R.averageRemaining, 7.5, 'ライズ事業所の平均残日数が一致しません');
+  assert.strictEqual(divisions.R.applications, 1, 'ライズ事業所の申請数が一致しません');
+  assert.strictEqual(divisions.P.employees, 1, 'パロン事業所の従業員数が一致しません');
+  assert.strictEqual(divisions.P.applications, 1, 'パロン事業所の申請数が一致しません');
+  assert.strictEqual(divisions.S.applications, 0, 'S事業所の申請は期間外のため0のはずです');
+});
+
 test('calculateBasicStatistics: 従業員と残日数を集計', () => {
   const masterSheet = [
     ['利用者番号', '利用者名', '残有給日数', '備考', '入社日', '週所定労働日数', '初回付与日', '最新年次付与日'],

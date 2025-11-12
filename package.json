@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "description": "有給管理システム向けユニットテスト設定",
   "scripts": {
-    "test": "node test/unit/run-tests.js"
+    "test": "node test/unit/run-tests.js",
+    "test:integration": "node test/integration/run-integration-tests.js"
   },
   "devDependencies": {},
   "license": "MIT"
