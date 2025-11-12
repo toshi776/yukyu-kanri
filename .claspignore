@@ -1,0 +1,27 @@
+# テストファイル（GASにプッシュ不要）
+test/**
+*.test.js
+
+# ドキュメント
+docs/**
+*.md
+README.md
+
+# Git関連
+.git/**
+.gitignore
+
+# 設定ファイル
+package.json
+package-lock.json
+node_modules/**
+
+# スクリプト
+scripts/**
+
+# その他
+.DS_Store
+*.pyc
+*.csv
+*.xlsx
+*.xls
