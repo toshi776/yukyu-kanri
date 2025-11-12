@@ -2,6 +2,100 @@
 
 ---
 
+## 2025-11-12: ワンクリック承認リンクのエラーハンドリング改善（v58） ✅
+
+### 背景
+ワンクリック承認リンクで承認処理後に「処理中にエラーが発生しました: undefined」というエラーメッセージが表示される問題が報告された。承認処理自体は成功しているが、エラーメッセージが正しく表示されていない状況。
+
+### 問題の原因
+1. `Code.js`の`handleOneClickApproval`関数で、`result.message`が`undefined`の場合にエラーメッセージが「undefined」と表示される
+2. エラーオブジェクトから正しくメッセージが取得できていない可能性
+3. デバッグ情報が不足しており、問題の特定が困難
+
+### 実施内容
+
+#### 1. Code.jsのエラーハンドリング改善 ✅
+
+**変更箇所:** `src/Code.js`の`handleOneClickApproval`関数
+
+**改善内容:**
+- `result`オブジェクトの内容をJSON形式でログ出力
+- `result`が正しいオブジェクトかどうかを検証
+- `result.message`が`undefined`の場合はデフォルトメッセージを使用
+- より詳細なエラー情報をログに記録
+
+**追加したコード:**
+```javascript
+// デバッグ: resultオブジェクトの内容を確認
+console.log('承認処理結果:', JSON.stringify(result));
+
+// resultが正しいオブジェクトかチェック
+if (!result || typeof result !== 'object') {
+  console.error('承認処理が不正な値を返しました:', result);
+  return renderApprovalResult(false, 'システムエラーが発生しました。再度お試しください。');
+}
+
+// エラーメッセージがundefinedの場合はデフォルトメッセージを使用
+var errorMessage = result.message || '不明なエラーが発生しました';
+console.error('承認処理失敗:', errorMessage);
+console.error('resultオブジェクト全体:', result);
+```
+
+#### 2. utils.jsのエラーハンドリング改善 ✅
+
+**変更箇所:** `src/utils.js`の`approveRecord`関数
+
+**改善内容:**
+- 関数開始時にパラメータをJSON形式でログ出力
+- ロック取得失敗時の明確なエラーメッセージ
+- エラー型とスタックトレースの詳細なログ記録
+- エラーメッセージを確実に取得する堅牢な処理
+- ロック解放時のエラーハンドリング追加
+
+**追加したコード:**
+```javascript
+// 関数開始時のログ
+console.log('approveRecord開始 - パラメータ:', JSON.stringify(obj));
+
+// エラーハンドリングの改善
+var errorMessage = 'エラーが発生しました';
+if (e) {
+  if (typeof e === 'string') {
+    errorMessage = e;
+  } else if (e.message) {
+    errorMessage = e.message;
+  } else if (e.toString && typeof e.toString === 'function') {
+    errorMessage = e.toString();
+  }
+}
+
+// ロック解放時のエラーハンドリング
+try {
+  if (lock) {
+    lock.releaseLock();
+  }
+} catch (lockError) {
+  console.error('ロック解放エラー:', lockError);
+}
+```
+
+### デプロイ情報
+- **バージョン:** v58
+- **デプロイ日時:** 2025-11-12 13:29:34
+- **デプロイID:** AKfycbyJNqVvi4wYJwjXEc5Y9QF7qV-08M9uk4396sAo7Lu0i0lsY2RlCtbAPVMWaeYiKeKn
+
+### 期待される効果
+1. エラーメッセージが「undefined」と表示されることがなくなる
+2. より詳細なログが記録され、問題の特定が容易になる
+3. 予期しないエラー発生時でも適切なメッセージがユーザーに表示される
+
+### 動作確認のポイント
+1. ワンクリック承認リンクで承認を実行
+2. エラーが発生した場合でも明確なメッセージが表示されることを確認
+3. ログを確認して問題の原因を特定できることを確認
+
+---
+
 ## 2025-11-12: ワンクリック承認リンク機能の実装（v56） ✅
 
 ### 背景
