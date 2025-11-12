@@ -454,6 +454,22 @@ function submitRequest(params) {
 
     console.log('申請成功:', params.userId, params.applyDate, applyDays + '日');
 
+    // 承認者に通知を送信
+    try {
+      var application = {
+        userId: params.userId,
+        userName: userInfo.name,
+        applyDate: params.applyDate,
+        applyDays: applyDays,
+        timestamp: new Date()
+      };
+      sendApplicationNotification(application);
+      console.log('承認者への通知送信完了');
+    } catch (notificationError) {
+      console.error('通知送信エラー（申請は成功）:', notificationError);
+      // 通知エラーでも申請は成功とする
+    }
+
     return {
       success: true,
       message: '申請が完了しました',
