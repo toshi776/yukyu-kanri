@@ -300,39 +300,113 @@
       transform: scale(0.98);
     }
 
+    /* スマホ用のカードレイアウト */
+    .application-card {
+      display: none; /* デスクトップでは非表示 */
+    }
+
     @media (max-width: 768px) {
       body {
         padding: 10px;
       }
-      
+
       .header {
         padding: 20px;
       }
-      
+
       .header h1 {
         font-size: 1.5em;
       }
-      
+
       .remaining-days {
-        font-size: 2em;
+        font-size: 1em;
         padding: 12px 25px;
       }
-      
+
+      .remaining-days .number {
+        font-size: 1.8em;
+      }
+
       .content {
-        padding: 20px;
+        padding: 15px;
       }
-      
+
+      .section h2 {
+        font-size: 1.3em;
+      }
+
+      /* スマホではテーブルを非表示 */
       .applications-table {
+        display: none;
+      }
+
+      /* カードレイアウトを表示 */
+      .application-card {
+        display: block;
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      }
+
+      .application-card .card-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #f0f0f0;
+      }
+
+      .application-card .card-row:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+      }
+
+      .application-card .card-label {
+        font-weight: bold;
+        color: #666;
         font-size: 0.9em;
+        flex-shrink: 0;
+        margin-right: 10px;
       }
-      
-      .applications-table th, .applications-table td {
-        padding: 10px 8px;
+
+      .application-card .card-value {
+        text-align: right;
+        flex-grow: 1;
       }
-      
+
+      .application-card .card-date {
+        font-size: 1.1em;
+        font-weight: bold;
+        color: #4CAF50;
+        margin-bottom: 15px;
+        text-align: center;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 8px;
+      }
+
+      .application-card .cancel-btn {
+        width: 100%;
+        padding: 12px;
+        font-size: 1em;
+        border-radius: 8px;
+        margin-top: 10px;
+      }
+
       .btn {
         width: 100%;
         margin-bottom: 10px;
+        min-width: auto;
+      }
+
+      .load-more-btn {
+        font-size: 1em;
+        padding: 12px;
       }
     }
   </style>
@@ -681,34 +755,66 @@
         newContent += '</tr></thead><tbody id="applicationsTableBody">';
       }
 
-      // データ行を追加
-      appsToShow.forEach(function(app) {
-        newContent += '<tr>';
-        newContent += '<td>' + app.applyDate + '</td>';
-        newContent += '<td>' + (app.applyDays === 0.5 ? '0.5日' : '1日') + '</td>';
-        newContent += '<td>' + app.timestamp + '</td>';
-        newContent += '<td>';
+      // データ行を追加（テーブル用）
+      var tableContent = '';
+      var cardContent = '';
 
+      appsToShow.forEach(function(app) {
         var statusClass = app.status.toLowerCase();
         var statusText = app.status === 'Pending' ? '承認待ち' :
                         app.status === 'Approved' ? '承認済み' :
                         app.status === 'Rejected' ? '却下' : app.status;
 
-        newContent += '<span class="status ' + statusClass + '">' + statusText + '</span>';
-        newContent += '</td>';
-        newContent += '<td>';
+        // テーブル行（PC用）
+        tableContent += '<tr>';
+        tableContent += '<td>' + app.applyDate + '</td>';
+        tableContent += '<td>' + (app.applyDays === 0.5 ? '0.5日' : '1日') + '</td>';
+        tableContent += '<td>' + app.timestamp + '</td>';
+        tableContent += '<td>';
+        tableContent += '<span class="status ' + statusClass + '">' + statusText + '</span>';
+        tableContent += '</td>';
+        tableContent += '<td>';
 
         if (app.canCancel && app.status === 'Pending') {
-          newContent += '<button class="cancel-btn" onclick="cancelApplication(' + app.rowNumber + ', \'' + app.applyDate + '\')">取消</button>';
+          tableContent += '<button class="cancel-btn" onclick="cancelApplication(' + app.rowNumber + ', \'' + app.applyDate + '\')">取消</button>';
         } else {
-          newContent += '<span style="color: #999;">-</span>';
+          tableContent += '<span style="color: #999;">-</span>';
         }
 
-        newContent += '</td></tr>';
+        tableContent += '</td></tr>';
+
+        // カードレイアウト（スマホ用）
+        cardContent += '<div class="application-card">';
+        cardContent += '<div class="card-date">📅 ' + app.applyDate + '</div>';
+
+        cardContent += '<div class="card-row">';
+        cardContent += '<span class="card-label">申請日数</span>';
+        cardContent += '<span class="card-value">' + (app.applyDays === 0.5 ? '0.5日（半日）' : '1日') + '</span>';
+        cardContent += '</div>';
+
+        cardContent += '<div class="card-row">';
+        cardContent += '<span class="card-label">申請日時</span>';
+        cardContent += '<span class="card-value">' + app.timestamp + '</span>';
+        cardContent += '</div>';
+
+        cardContent += '<div class="card-row">';
+        cardContent += '<span class="card-label">ステータス</span>';
+        cardContent += '<span class="card-value"><span class="status ' + statusClass + '">' + statusText + '</span></span>';
+        cardContent += '</div>';
+
+        if (app.canCancel && app.status === 'Pending') {
+          cardContent += '<button class="cancel-btn" onclick="cancelApplication(' + app.rowNumber + ', \'' + app.applyDate + '\')">🗑️ この申請を取り消す</button>';
+        }
+
+        cardContent += '</div>';
       });
 
       if (isInitial) {
+        newContent += tableContent;
         newContent += '</tbody></table>';
+
+        // カードコンテナを追加
+        newContent += '<div id="applicationCardsContainer">' + cardContent + '</div>';
 
         // 「もっと見る」ボタンを追加
         if (allApplications.length > itemsPerPage) {
@@ -719,18 +825,28 @@
         container.innerHTML = newContent;
         displayedCount = endIndex;
       } else {
-        // 追加表示の場合はtbodyに追記
+        // 追加表示の場合
         var tbody = document.getElementById('applicationsTableBody');
         if (tbody) {
           // テーブル行を正しく解析するために一時的なtableを作成
           var tempTable = document.createElement('table');
           var tempTbody = document.createElement('tbody');
-          tempTbody.innerHTML = newContent;
+          tempTbody.innerHTML = tableContent;
           tempTable.appendChild(tempTbody);
 
           // 生成された行をtbodyに追加
           while (tempTbody.firstChild) {
             tbody.appendChild(tempTbody.firstChild);
+          }
+        }
+
+        // カードコンテナに追加
+        var cardsContainer = document.getElementById('applicationCardsContainer');
+        if (cardsContainer) {
+          var tempDiv = document.createElement('div');
+          tempDiv.innerHTML = cardContent;
+          while (tempDiv.firstChild) {
+            cardsContainer.appendChild(tempDiv.firstChild);
           }
         }
 
