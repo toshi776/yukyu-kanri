@@ -340,6 +340,28 @@ function approveRecord(obj) {
 }
 
 /**
+ * 申請却下
+ * @param {Object} obj レコード情報
+ * @returns {Object} 成功/失敗
+ */
+function rejectRecord(obj) {
+  try {
+    var rowNumber = obj.rowNumber;
+    var reason = obj.reason || '';
+
+    // approveRecord関数を再利用（ステータスをRejectedに設定）
+    return approveRecord({
+      rowNumber: rowNumber,
+      status: 'Rejected',
+      reason: reason
+    });
+  } catch (e) {
+    console.error('却下処理エラー:', e);
+    throw e;
+  }
+}
+
+/**
  * 申請取消
  * @param {Object} obj レコード情報
  * @returns {boolean} 成功/失敗
@@ -349,12 +371,12 @@ function cancelRecord(obj) {
     var recordId = obj.recordId;
     var ss = getSpreadsheet();
     var sheet = ss.getSheetByName('申請'); // シート名を'申請'に修正
-    
+
     if (!sheet) {
       console.error('申請シートが見つかりません');
       return false;
     }
-    
+
     sheet.getRange(recordId, 6).setValue('Canceled'); // ステータス列
     sheet.getRange(recordId, 5).setValue(new Date()); // タイムスタンプ列
     return true;

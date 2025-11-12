@@ -566,15 +566,27 @@ function buildApprovalLink(application, action) {
 
   action = action || 'approve';
 
+  // 日付を正規化（yyyy/MM/dd形式に統一）
+  var normalizedDate = normalizeDate(application.applyDate);
+
+  // 正規化された日付でトークンを生成
+  var normalizedApplication = {
+    userId: application.userId,
+    userName: application.userName,
+    applyDate: normalizedDate,
+    applyDays: application.applyDays,
+    timestamp: application.timestamp
+  };
+
   // セキュリティトークンを生成
-  var token = generateApprovalToken(application);
+  var token = generateApprovalToken(normalizedApplication);
 
   var base = NOTIFICATION_CONFIG.APPROVAL_BASE_URL;
   var separator = base.indexOf('?') === -1 ? '?' : '&';
   var params = [
     'action=' + encodeURIComponent(action),
     'userId=' + encodeURIComponent(application.userId || ''),
-    'date=' + encodeURIComponent(application.applyDate || ''),
+    'date=' + encodeURIComponent(normalizedDate),
     'days=' + encodeURIComponent(application.applyDays || 0),
     'token=' + encodeURIComponent(token)
   ];
@@ -602,8 +614,11 @@ function generateApprovalToken(application) {
  */
 function validateApprovalToken(params) {
   try {
+    console.log('トークン検証開始:', params);
+
     // トークンが提供されているか確認
     if (!params.token) {
+      console.log('トークンが提供されていません');
       return false;
     }
 
@@ -612,10 +627,15 @@ function validateApprovalToken(params) {
     var appSheet = ss.getSheetByName('申請');
 
     if (!appSheet) {
+      console.log('申請シートが見つかりません');
       return false;
     }
 
     var data = appSheet.getDataRange().getValues();
+
+    // パラメータの日付を正規化（yyyy/MM/dd形式に統一）
+    var paramsDate = normalizeDate(params.date);
+    console.log('検証対象日付（正規化後）:', paramsDate);
 
     // ヘッダーをスキップして検索
     for (var i = 1; i < data.length; i++) {
@@ -625,16 +645,22 @@ function validateApprovalToken(params) {
       var applyDays = Number(row[7] || 0);
       var timestamp = row[4];
       var status = String(row[5] || '');
+      var userName = String(row[1] || '');
+
+      console.log('チェック中 - userId:', userId, 'applyDate:', applyDate, 'status:', status);
 
       // パラメータと一致する申請を検索
       if (userId === params.userId &&
-          applyDate === params.date &&
+          applyDate === paramsDate &&
           applyDays == params.days &&
           status === 'Pending') {
+
+        console.log('一致する申請を発見:', userId, applyDate);
 
         // トークンを再生成して検証
         var application = {
           userId: userId,
+          userName: userName,
           applyDate: applyDate,
           applyDays: applyDays,
           timestamp: timestamp
@@ -642,21 +668,60 @@ function validateApprovalToken(params) {
 
         var expectedToken = generateApprovalToken(application);
 
+        console.log('トークン比較:', { expected: expectedToken, actual: params.token });
+
         if (params.token === expectedToken) {
+          console.log('トークン検証成功');
           return {
             valid: true,
             rowNumber: i + 1,
             application: application
           };
+        } else {
+          console.log('トークンが一致しません');
         }
       }
     }
 
+    console.log('一致する申請が見つかりませんでした');
     return false;
 
   } catch (error) {
     console.error('トークン検証エラー:', error);
     return false;
+  }
+}
+
+/**
+ * 日付を正規化（yyyy/MM/dd形式に統一）
+ * @param {string|Date} dateInput - 入力日付
+ * @return {string} 正規化された日付文字列
+ */
+function normalizeDate(dateInput) {
+  try {
+    if (!dateInput) return '';
+
+    // 既にyyyy/MM/dd形式の場合はそのまま返す
+    if (typeof dateInput === 'string' && dateInput.match(/^\d{4}\/\d{2}\/\d{2}$/)) {
+      return dateInput;
+    }
+
+    // yyyy-MM-dd形式の場合は変換
+    if (typeof dateInput === 'string' && dateInput.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return dateInput.replace(/-/g, '/');
+    }
+
+    // Dateオブジェクトまたはその他の形式の場合
+    var date = new Date(dateInput);
+    if (isNaN(date.getTime())) {
+      console.warn('無効な日付:', dateInput);
+      return String(dateInput);
+    }
+
+    return Utilities.formatDate(date, 'JST', 'yyyy/MM/dd');
+  } catch (error) {
+    console.error('日付正規化エラー:', error);
+    return String(dateInput);
   }
 }
 
