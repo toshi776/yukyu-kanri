@@ -716,21 +716,24 @@
       if (!confirm(userName + ' さんの申請を承認しますか？')) {
         return;
       }
-      
+
       console.log('✅ 申請承認開始:', rowNumber, userName);
-      
+
       google.script.run
         .withSuccessHandler(function(result) {
           console.log('✅ 申請承認成功:', result);
-          alert(userName + ' さんの申請を承認しました');
-          // 承認後は申請承認タブを再表示
-          refreshApplicationTab();
+          // 承認後は申請一覧を再読み込み（承認済みは自動的に非表示になる）
+          loadApplications();
+          // 再読み込み後にメッセージを表示
+          setTimeout(function() {
+            alert(userName + ' さんの申請を承認しました');
+          }, 500);
         })
         .withFailureHandler(function(error) {
           console.error('❌ 申請承認エラー:', error);
           if (error.message && error.message.includes('既に処理されています')) {
             alert('この申請は既に他の管理者によって処理されています。\n画面を更新して最新の状態をご確認ください。');
-            refreshApplicationTab();
+            loadApplications();
           } else {
             alert('申請の承認に失敗しました: ' + error.message);
           }
@@ -746,21 +749,24 @@
       if (!confirm(userName + ' さんの申請を却下しますか？')) {
         return;
       }
-      
+
       console.log('❌ 申請却下開始:', rowNumber, userName);
-      
+
       google.script.run
         .withSuccessHandler(function(result) {
           console.log('✅ 申請却下成功:', result);
-          alert(userName + ' さんの申請を却下しました');
-          // 却下後は申請承認タブを再表示
-          refreshApplicationTab();
+          // 却下後は申請一覧を再読み込み（却下済みは自動的に非表示になる）
+          loadApplications();
+          // 再読み込み後にメッセージを表示
+          setTimeout(function() {
+            alert(userName + ' さんの申請を却下しました');
+          }, 500);
         })
         .withFailureHandler(function(error) {
           console.error('❌ 申請却下エラー:', error);
           if (error.message && error.message.includes('既に処理されています')) {
             alert('この申請は既に他の管理者によって処理されています。\n画面を更新して最新の状態をご確認ください。');
-            refreshApplicationTab();
+            loadApplications();
           } else {
             alert('申請の却下に失敗しました: ' + error.message);
           }
