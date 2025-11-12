@@ -300,11 +300,6 @@
       transform: scale(0.98);
     }
 
-    /* スマホ用のカードレイアウト */
-    .application-card {
-      display: none; /* デスクトップでは非表示 */
-    }
-
     @media (max-width: 768px) {
       body {
         padding: 10px;
@@ -335,67 +330,54 @@
         font-size: 1.3em;
       }
 
-      /* スマホではテーブルを非表示 */
+      /* スマホではテーブルを維持しつつ、サイズを調整 */
       .applications-table {
+        font-size: 0.8em;
+      }
+
+      .applications-table th,
+      .applications-table td {
+        padding: 8px 4px;
+      }
+
+      /* 申請日時列を非表示 */
+      .applications-table th:nth-child(3),
+      .applications-table td:nth-child(3) {
         display: none;
       }
 
-      /* カードレイアウトを表示 */
-      .application-card {
-        display: block;
-        background: white;
-        border: 1px solid #e0e0e0;
-        border-radius: 10px;
-        padding: 15px;
-        margin-bottom: 15px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      /* 各列の幅調整 */
+      .applications-table th:nth-child(1),
+      .applications-table td:nth-child(1) {
+        width: 20%; /* 申請日 */
       }
 
-      .application-card .card-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid #f0f0f0;
-      }
-
-      .application-card .card-row:last-child {
-        border-bottom: none;
-        margin-bottom: 0;
-        padding-bottom: 0;
-      }
-
-      .application-card .card-label {
-        font-weight: bold;
-        color: #666;
-        font-size: 0.9em;
-        flex-shrink: 0;
-        margin-right: 10px;
-      }
-
-      .application-card .card-value {
-        text-align: right;
-        flex-grow: 1;
-      }
-
-      .application-card .card-date {
-        font-size: 1.1em;
-        font-weight: bold;
-        color: #4CAF50;
-        margin-bottom: 15px;
+      .applications-table th:nth-child(2),
+      .applications-table td:nth-child(2) {
+        width: 15%; /* 日数 */
         text-align: center;
-        padding: 10px;
-        background: #f8f9fa;
-        border-radius: 8px;
       }
 
-      .application-card .cancel-btn {
-        width: 100%;
-        padding: 12px;
-        font-size: 1em;
-        border-radius: 8px;
-        margin-top: 10px;
+      .applications-table th:nth-child(4),
+      .applications-table td:nth-child(4) {
+        width: 30%; /* ステータス */
+      }
+
+      .applications-table th:nth-child(5),
+      .applications-table td:nth-child(5) {
+        width: 35%; /* 操作 */
+      }
+
+      .cancel-btn {
+        padding: 6px 10px;
+        font-size: 0.85em;
+        white-space: nowrap;
+      }
+
+      .status {
+        font-size: 0.75em;
+        padding: 4px 8px;
+        min-width: auto;
       }
 
       .btn {
@@ -732,6 +714,31 @@
       renderApplications(true);
     }
 
+    // 申請日を表示用にフォーマット（スマホでは月/日のみ）
+    function formatApplyDateForDisplay(dateStr) {
+      // スマホ判定（画面幅768px未満）
+      var isMobile = window.innerWidth < 768;
+
+      if (!isMobile) {
+        return dateStr; // PCではそのまま表示
+      }
+
+      // スマホでは月/日のみ表示
+      // yyyy/MM/dd → MM/dd
+      var parts = dateStr.split('/');
+      if (parts.length === 3) {
+        return parts[1] + '/' + parts[2];
+      }
+
+      // yyyy-MM-dd → MM/dd
+      parts = dateStr.split('-');
+      if (parts.length === 3) {
+        return parts[1] + '/' + parts[2];
+      }
+
+      return dateStr;
+    }
+
     // 申請履歴をレンダリング（初期表示または追加表示）
     function renderApplications(isInitial) {
       var container = document.getElementById('applicationHistoryContainer');
@@ -755,9 +762,8 @@
         newContent += '</tr></thead><tbody id="applicationsTableBody">';
       }
 
-      // データ行を追加（テーブル用）
+      // データ行を追加
       var tableContent = '';
-      var cardContent = '';
 
       appsToShow.forEach(function(app) {
         var statusClass = app.status.toLowerCase();
@@ -765,9 +771,11 @@
                         app.status === 'Approved' ? '承認済み' :
                         app.status === 'Rejected' ? '却下' : app.status;
 
-        // テーブル行（PC用）
+        // 申請日をフォーマット（スマホでは月/日のみ）
+        var displayDate = formatApplyDateForDisplay(app.applyDate);
+
         tableContent += '<tr>';
-        tableContent += '<td>' + app.applyDate + '</td>';
+        tableContent += '<td>' + displayDate + '</td>';
         tableContent += '<td>' + (app.applyDays === 0.5 ? '0.5日' : '1日') + '</td>';
         tableContent += '<td>' + app.timestamp + '</td>';
         tableContent += '<td>';
@@ -782,39 +790,11 @@
         }
 
         tableContent += '</td></tr>';
-
-        // カードレイアウト（スマホ用）
-        cardContent += '<div class="application-card">';
-        cardContent += '<div class="card-date">📅 ' + app.applyDate + '</div>';
-
-        cardContent += '<div class="card-row">';
-        cardContent += '<span class="card-label">申請日数</span>';
-        cardContent += '<span class="card-value">' + (app.applyDays === 0.5 ? '0.5日（半日）' : '1日') + '</span>';
-        cardContent += '</div>';
-
-        cardContent += '<div class="card-row">';
-        cardContent += '<span class="card-label">申請日時</span>';
-        cardContent += '<span class="card-value">' + app.timestamp + '</span>';
-        cardContent += '</div>';
-
-        cardContent += '<div class="card-row">';
-        cardContent += '<span class="card-label">ステータス</span>';
-        cardContent += '<span class="card-value"><span class="status ' + statusClass + '">' + statusText + '</span></span>';
-        cardContent += '</div>';
-
-        if (app.canCancel && app.status === 'Pending') {
-          cardContent += '<button class="cancel-btn" onclick="cancelApplication(' + app.rowNumber + ', \'' + app.applyDate + '\')">🗑️ この申請を取り消す</button>';
-        }
-
-        cardContent += '</div>';
       });
 
       if (isInitial) {
         newContent += tableContent;
         newContent += '</tbody></table>';
-
-        // カードコンテナを追加
-        newContent += '<div id="applicationCardsContainer">' + cardContent + '</div>';
 
         // 「もっと見る」ボタンを追加
         if (allApplications.length > itemsPerPage) {
@@ -837,16 +817,6 @@
           // 生成された行をtbodyに追加
           while (tempTbody.firstChild) {
             tbody.appendChild(tempTbody.firstChild);
-          }
-        }
-
-        // カードコンテナに追加
-        var cardsContainer = document.getElementById('applicationCardsContainer');
-        if (cardsContainer) {
-          var tempDiv = document.createElement('div');
-          tempDiv.innerHTML = cardContent;
-          while (tempDiv.firstChild) {
-            cardsContainer.appendChild(tempDiv.firstChild);
           }
         }
 
