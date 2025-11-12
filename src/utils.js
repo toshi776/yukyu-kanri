@@ -261,41 +261,55 @@ function updateRecord(obj) {
 /**
  * 申請承認
  * @param {Object} obj レコード情報
- * @returns {boolean} 成功/失敗
+ * @returns {Object} 成功/失敗とメッセージ
  */
 function approveRecord(obj) {
   var lock = LockService.getScriptLock();
   try {
+    console.log('approveRecord開始 - パラメータ:', JSON.stringify(obj));
+
     // 最大10秒間ロックを試行
-    lock.waitLock(10000);
-    
+    if (!lock.waitLock(10000)) {
+      console.error('ロック取得に失敗しました');
+      return {
+        success: false,
+        message: '他の処理が実行中です。しばらくしてから再度お試しください。'
+      };
+    }
+
     var rowNumber = obj.rowNumber;
     var status = obj.status || 'Approved';
     var rejectionReason = obj.reason || '';
     var ss = getSpreadsheet();
     var sheet = ss.getSheetByName('申請'); // シート名を'申請'に修正
-    
+
     if (!sheet) {
       console.error('申請シートが見つかりません');
-      return false;
+      return {
+        success: false,
+        message: '申請シートが見つかりません'
+      };
     }
-    
+
     console.log('承認処理:', rowNumber, status);
-    
+
     // 現在のステータスを確認（既に処理済みかチェック）
     var currentStatus = sheet.getRange(rowNumber, 6).getValue();
     if (currentStatus !== 'Pending') {
       console.log('既に処理済みの申請です:', currentStatus);
-      throw new Error('この申請は既に処理されています（現在のステータス: ' + currentStatus + '）');
+      return {
+        success: false,
+        message: 'この申請は既に処理されています（現在のステータス: ' + currentStatus + '）'
+      };
     }
-    
+
     var userId = sheet.getRange(rowNumber, 1).getValue(); // 利用者番号取得
     var applyDays = sheet.getRange(rowNumber, 8).getValue() || 1; // 申請日数取得（H列）
-    
+
     // 却下の場合は有給残日数を復旧
     if (status === 'Rejected') {
       var masterSheet = ss.getSheetByName('マスター');
-      
+
       if (masterSheet) {
         var masterData = masterSheet.getDataRange().getValues();
         for (var i = 1; i < masterData.length; i++) {
@@ -308,10 +322,10 @@ function approveRecord(obj) {
         }
       }
     }
-    
+
     sheet.getRange(rowNumber, 6).setValue(status); // ステータス列（F列）
     sheet.getRange(rowNumber, 7).setValue(new Date()); // 更新ログ列（G列）
-    
+
     // 承認結果通知を送信（エラーがあっても承認処理は継続）
     try {
       if (typeof sendApprovalResultNotification === 'function') {
@@ -327,15 +341,42 @@ function approveRecord(obj) {
     } catch (notifyError) {
       console.error('承認結果通知エラー(無視):', notifyError);
     }
-    
+
     console.log('承認処理完了');
-    return true;
+    return {
+      success: true,
+      message: '承認処理が完了しました'
+    };
   } catch (e) {
     console.error('承認処理エラー:', e);
-    throw e; // エラーを再スローして呼び出し元でキャッチ
+    console.error('エラー型:', typeof e);
+    console.error('エラースタック:', e && e.stack ? e.stack : 'スタックなし');
+
+    // エラーメッセージを確実に取得
+    var errorMessage = 'エラーが発生しました';
+    if (e) {
+      if (typeof e === 'string') {
+        errorMessage = e;
+      } else if (e.message) {
+        errorMessage = e.message;
+      } else if (e.toString && typeof e.toString === 'function') {
+        errorMessage = e.toString();
+      }
+    }
+
+    return {
+      success: false,
+      message: errorMessage
+    };
   } finally {
     // ロックを解放
-    lock.releaseLock();
+    try {
+      if (lock) {
+        lock.releaseLock();
+      }
+    } catch (lockError) {
+      console.error('ロック解放エラー:', lockError);
+    }
   }
 }
 

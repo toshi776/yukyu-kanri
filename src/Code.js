@@ -65,6 +65,15 @@ function handleOneClickApproval(params) {
       result = rejectRecord({ rowNumber: rowNumber, reason: 'メールから却下' });
     }
 
+    // デバッグ: resultオブジェクトの内容を確認
+    console.log('承認処理結果:', JSON.stringify(result));
+
+    // resultが正しいオブジェクトかチェック
+    if (!result || typeof result !== 'object') {
+      console.error('承認処理が不正な値を返しました:', result);
+      return renderApprovalResult(false, 'システムエラーが発生しました。再度お試しください。');
+    }
+
     if (result.success) {
       var message = isApprove ?
         `${application.userName}さんの${application.applyDate}の有給申請（${application.applyDays}日）を承認しました。` :
@@ -73,8 +82,11 @@ function handleOneClickApproval(params) {
       console.log('承認処理成功:', message);
       return renderApprovalResult(true, message);
     } else {
-      console.error('承認処理失敗:', result.message);
-      return renderApprovalResult(false, '処理中にエラーが発生しました: ' + result.message);
+      // エラーメッセージがundefinedの場合はデフォルトメッセージを使用
+      var errorMessage = result.message || '不明なエラーが発生しました';
+      console.error('承認処理失敗:', errorMessage);
+      console.error('resultオブジェクト全体:', result);
+      return renderApprovalResult(false, '処理中にエラーが発生しました: ' + errorMessage);
     }
 
   } catch (error) {
