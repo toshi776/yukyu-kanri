@@ -146,11 +146,11 @@ function getApplications(params) {
       });
     }
 
-    // 申請日時の降順でソート（最新の申請が上に）
+    // 有給希望日の昇順でソート（古い日付が上に）
     data.sort(function(a, b) {
-      var dateA = new Date(a.timestamp);
-      var dateB = new Date(b.timestamp);
-      return dateB - dateA; // 降順
+      var dateA = new Date(a.applyDate);
+      var dateB = new Date(b.applyDate);
+      return dateA - dateB; // 昇順
     });
 
     // ページング（100件に増量）

@@ -1,5 +1,6 @@
 # テストファイル（GASにプッシュ不要）
 test/**
+test.backup/**
 *.test.js
 
 # ドキュメント
