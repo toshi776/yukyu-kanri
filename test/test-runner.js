@@ -82,7 +82,23 @@ function runAllTests() {
       testName: '統計レポート機能',
       result: statisticsTest
     });
-    
+
+    // 10. エッジケース・境界値テスト
+    console.log('\n10. エッジケース・境界値テスト');
+    var edgeCaseTest = runEdgeCaseTests();
+    testResults.push({
+      testName: 'エッジケース・境界値',
+      result: edgeCaseTest
+    });
+
+    // 11. データ整合性詳細確認テスト
+    console.log('\n11. データ整合性詳細確認テスト');
+    var dataIntegrityTest = runDataIntegrityTests();
+    testResults.push({
+      testName: 'データ整合性詳細確認',
+      result: dataIntegrityTest
+    });
+
   } catch (error) {
     console.error('テスト実行中にエラー:', error);
     testResults.push({
@@ -704,7 +720,9 @@ function checkDevelopmentProgress() {
     '✅ 年次付与処理',
     '✅ GASトリガー管理システム',
     '✅ 通知機能の本格運用',
-    '✅ 統計レポート機能'
+    '✅ 統計レポート機能',
+    '✅ エッジケース・境界値テスト',
+    '✅ データ整合性詳細確認テスト'
   ];
   
   var pendingFeatures = [
