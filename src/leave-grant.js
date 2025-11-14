@@ -349,7 +349,12 @@ function getRecentGrantHistory(limit) {
 function consumeLeave(userId, useDays) {
   try {
     console.log('有給消費処理開始:', userId, useDays);
-    
+
+    // 入力値のバリデーション
+    if (useDays <= 0) {
+      throw new Error('消費日数は0より大きい値を指定してください');
+    }
+
     var ss = getSpreadsheet();
     var grantHistorySheet = getOrCreateGrantHistorySheet(ss);
     
