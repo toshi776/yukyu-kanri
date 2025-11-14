@@ -154,10 +154,14 @@ function testRemainingDaysBoundary() {
     var exactRemaining = calculateEffectiveRemainingDays(testUserId);
     var exactApplyResult = consumeLeave(testUserId, exactRemaining);
 
+    // 0日申請は実務上無意味なので拒否されるべき
+    var expectedResult = exactRemaining > 0;
+
     results.push({
       test: '残日数ピッタリの申請',
-      result: exactApplyResult.success ? 'SUCCESS' : 'FAILED',
-      detail: '残' + exactRemaining + '日で' + exactRemaining + '日申請: ' + (exactApplyResult.success ? '許可（正常）' : '拒否（不正）')
+      result: exactApplyResult.success === expectedResult ? 'SUCCESS' : 'FAILED',
+      detail: '残' + exactRemaining + '日で' + exactRemaining + '日申請: ' +
+              (exactRemaining === 0 ? (exactApplyResult.success ? '許可（不正）' : '拒否（正常）') : (exactApplyResult.success ? '許可（正常）' : '拒否（不正）'))
     });
 
     // テスト4: マイナス日数の申請防止
