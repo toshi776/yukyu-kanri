@@ -3,6 +3,10 @@
 test.backup/**
 *.test.js
 
+# Node.js用ローカルテスト（GASでは動作しない）
+test/integration/**
+test/unit/**
+
 # ドキュメント
 docs/**
 *.md
